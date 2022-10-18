@@ -1,65 +1,67 @@
 from core import Operator, Constant, evaluate
 from typing import Callable
 
-import requests
-
-
-class Request(Operator):
-	def __init__(self, url: Constant):
-		self.url = url
-
-	def __call__(self, url):
-		response = requests.get(url) 
-		return response.text
-
 
 class Cache(Operator):
 	def __init__(self, source:Operator, key:Callable=None):
+		super().__init__()
 		if key is None:
 			key = lambda s: hash(s)
 
 		self.source = source
 		self.key = key
+		self.cache = dict()
+
+	def __hash__(self):
+		return hash( ("Cache", self.source) )
 
 	def dependencies(self):
-		key = self.key(self.source)
-		if key not in cache:
+		if self.source not in self.cache:
 			return [self.source]
 		else:
 			return []
 
 	def __call__(self, value=None):
-		if key not in cache:
-			cache[key] = value
-		return cache[key]
-
-
-class Placeholder:
-	"""attribute"""
-	def __init__(self, value=None):
-		self.value = value
-
-	def __call__(self):
-		return self.value
-
-
-class MyGraph(Operator):
-	def __init__(self, placeholders):
-		self.url = Constant("https://444.hu/")
-		self.output = Request(self.url)
-
-	def dependencies(self):
-		return []
-
-	def __call__(self)
-:		url = self.url()
-		text = self.request(url)
-		return self.text
+		if value is not None:
+			self.cache[self.source] = value
+		return self.cache[self.source]
 
 
 if __name__ == "__main__":
-	mygraph = MyGraph()
-	result = mygraph({url: "https://444.hu/"})
-	print(result)
+	import requests
+
+
+	class Request(Operator):
+		def __init__(self, url: Constant):
+			super().__init__()
+			self.url = url
+
+		def __call__(self, url):
+			print("call", self)
+			response = requests.get(url)
+			return response.text
+
+	class StripHTML(Operator):
+		def __init__(self, html: Operator):
+			super().__init__()
+			self.html:Operator = html
+
+		def __call__(self, html:str):
+			import re
+			return re.sub('<[^<]+?>', '', html)
+
+
+	url = Constant("https://444.hu/2022/10/18/50-meternyi-darab-szakadt-ki-az-eszaki-aramlatbol-a-robbantas-utan")
+	request = Request(url)
+	cache_request = Cache(request)
+	strip = StripHTML(cache_request)
+	output = strip
+
+	evaluate(strip)
+	evaluate(strip)
+
+	# cache works if call Request print only once!
+
+
 	
 		

@@ -57,3 +57,18 @@ if __name__ == "__main__":
     }
 
     display(G)
+
+class MyGraph(Operator):
+    def __init__(self):
+        super()
+        self.url = Constant("https://444.hu/2022/10/18/50-meternyi-darab-szakadt-ki-az-eszaki-aramlatbol-a-robbantas-utan")
+        self.request = Request(self.url)
+        self.cache_request = Cache(self.request)
+        self.strip = StripHTML(self.cache_request)
+        self.output = self.strip
+
+    def dependencies(self):
+        return []
+
+    def __call__(self):
+        return evaluate(self.output, verbose=True)

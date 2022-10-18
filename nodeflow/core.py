@@ -12,6 +12,9 @@ class Operator:
             if isinstance(value, Operator):
                 yield value
 
+    def __hash__(self):
+        return hash( tuple( self.__dict__.values() ) )
+
     def __call__(self)->Any:
         return None
 
@@ -42,7 +45,7 @@ def evaluate(root:Operator, verbose=False):
     """Evaluate Graph"""
     if verbose: print("==EVALUATE GRAPH==\n==================\n")
 
-    if verbose: print("Create Graph (dependency)\n------------")
+    #if verbose: print("Create Graph (dependency)\n------------")
 
     # Run a depth first search on root node to create the dependency graph
     # order is important when evaluating
@@ -57,10 +60,10 @@ def evaluate(root:Operator, verbose=False):
                 G[N].append(S)
 
     # Show dependency graph
-    if verbose: 
-        for N, deps in G.items():
-            print(f"  {N}: {deps}")
-        print()
+    #if verbose: 
+    #    for N, deps in G.items():
+    #        print(f"  {N}: {deps}")
+    #    print()
 
     if verbose: print("Reverse Graph (dependants)\n-------------")
     # Reverse G to create dependants graph
@@ -88,7 +91,8 @@ def evaluate(root:Operator, verbose=False):
     for N in topological_order:
         args = list( reversed(arguments[N]) )
         value = N(*args) # evaluate node with arguments
-        if verbose: print(f"  {N}({', '.join(repr(arg) for arg in args)}) -> {value}")
+        if verbose:
+            print(f"  {N}({', '.join(repr(arg)[:10] for arg in args)}) => {repr(value)[:10]}")
         del arguments[N] # delete results used for evaluation
 
         # push results forward
