@@ -1,6 +1,8 @@
 from core import Operator, Constant, evaluate
 from typing import Callable
 
+from functools import partial
+
 
 class Cache(Operator):
 	def __init__(self, source:Operator, key:Callable=None):
@@ -10,6 +12,10 @@ class Cache(Operator):
 
 		self.source = source
 		self.key = key
+		if not key:
+			self.key = partial(hash, self.source.args + tuple(self.source.kwargs.values()))
+
+
 		self.cache = dict()
 
 	def __hash__(self):
@@ -53,14 +59,36 @@ if __name__ == "__main__":
 
 	url = Constant("https://444.hu/2022/10/18/50-meternyi-darab-szakadt-ki-az-eszaki-aramlatbol-a-robbantas-utan")
 	request = Request(url)
-	cache_request = Cache(request)
-	strip = StripHTML(cache_request)
+	cached_request = Cache(request)
+	strip = StripHTML(cached_request)
 	output = strip
 
-	evaluate(strip)
-	evaluate(strip)
-
 	# cache works if call Request print only once!
+	evaluate(strip)
+	result = evaluate(strip)
+	#print(result)
+
+	
+	
+	# print("PYTHONFLOW")
+	# import pythonflow as pf
+	# CACHE = dict()
+	# def save(key, obj):
+	# 	global CACHE
+	# 	CACHE[key] = obj
+
+	# def load(key):
+	# 	global CACHE
+	# 	return CACHE[key]
+
+
+	# with pf.Graph() as graph:
+	#     seq = pf.constant([1,2,3,4,5])
+	#     cached = pf.cache(seq, save, load)
+	#     filtered = pf.filter_(lambda i: i<3, cached)
+
+	# result = graph(filtered)
+	# print(result)
 
 
 	

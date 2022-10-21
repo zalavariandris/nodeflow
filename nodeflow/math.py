@@ -1,14 +1,14 @@
 from typing import Callable, Any, Hashable
-from core import Operator
+from core import Operator, Constant
 
 
-class Constant(Operator):
-    def __init__(self, value:Any, name: str=None):
-        super().__init__(name)
-        self.value = value
+# class Constant(Operator):
+#     def __init__(self, value:Any, name: str=None):
+#         super().__init__(name)
+#         self.value = value
 
-    def __call__(self)->Any:
-        return self.value
+#     def __call__(self)->Any:
+#         return self.value
 
 
 def operator(f: Callable):

@@ -2,18 +2,35 @@ from typing import Union, List, Dict, Any, Callable
 from collections import OrderedDict
 import uuid
 
+from collections import Counter
 
 class Operator:
-    def __init__(self, name:str=None):
+    namecounter = Counter()
+    def __init__(self, *args, name:str=None, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
         self.name = name
-
-    def dependencies(self)->"Operator":
-        for key, value in self.__dict__.items():
-            if isinstance(value, Operator):
-                yield value
+        if not self.name:
+            self.name = f"{self.__class__.__name__}"
+        self.namecounter[self.name]+=1
+        if self.namecounter[self.name]>0:
+            self.name  += "#{:03}".format(self.namecounter[self.name])
 
     def __hash__(self):
+        return id(self)
+
+    def dependencies(self)->"Operator":
+        for dep in self.args:
+            yield dep
+
+        for dep in self.kwargs.values():
+            yield dep
+
+    def key(self):
         return hash( tuple( self.__dict__.values() ) )
+
+    def __hash__(self):
+        return id(self)
 
     def __call__(self)->Any:
         return None
