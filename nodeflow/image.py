@@ -45,7 +45,7 @@ class ToRec709(Operator):
 
 if __name__ == "__main__":
     import sys
-    from gui import VideoPlayer
+    from gui.videoplayer import VideoPlayer
     from PySide2.QtCore import Qt
     from PySide2.QtGui import QImage, QPixmap
     from PySide2.QtWidgets import QApplication, QWidget
@@ -68,42 +68,48 @@ if __name__ == "__main__":
     # Create Graph
     with pf.Graph() as graph:
         imageio = pf.import_('imageio')
-        ndimage = pf.import_('scipy.ndimage')
-        np = pf.import_('numpy')
         filename = pf.placeholder('filename')
         image = (imageio.imread(filename).set_name('imread')[..., :3] / 255.0)
         cached = pf.cache(image, load_cache, save_cache, key=filename)
         cached.set_name("out")
 
-    result = graph('out', filename="C:/Users/and/Desktop/SMPTE_colorbars/SMPTE_colorbars_00001.jpg")
-    result = graph('out', filename="C:/Users/and/Desktop/SMPTE_colorbars/SMPTE_colorbars_00001.jpg")
+
     #print(result)
-    exit()
-    filename = pf.Placeholder()
-    read1 = Read(filename)
-    tex = ToTexture(read1)
-    rec709 = ToRec709(tex)
+    #filename = Placeholder()
+    #read1 = Read(filename)
+    #tex = ToTexture(read1)
+    #rec709 = ToRec709(tex)
     
     # cache works if call Request print only once!
-    result = evaluate(read1)
+    #result = evaluate(read1)
 
     # Create GUI
     app = QApplication()
     window = VideoPlayer()
+
+    def hashtags_to_printf(filename):
+        import re
+        """convert hashtags to printf"""
+        hashtag_match = re.search("#+", filename) # match hashtags
+        if hashtag_match is not None: # convert hastag to printf style
+            span = hashtag_match.span()
+            filename = filename[0:span[0]]+f"%0{span[1]-span[0]}d"+filename[span[1]:] # convert to printf style
+            return filename
+        else:
+            raise NotImplementedError
 
     def update():
         #
         frame = window.frame()
         # run graph
         filename = "C:/Users/and/Desktop/SMPTE_colorbars/SMPTE_colorbars_#####.jpg"
-        m = re.search("#+", filename) # match hashtags
-        filename = filename[0:m.span()[0]]+f"%0{m.span()[1]-m.span()[0]}d"+filename[m.span()[1]:] # convert to printf style
-        read1 = Read(filename)
+        filename = hashtags_to_printf(filename)
+        filename = filename % frame
+        #read1 = Read(filename)
 
-        window.setImage(im)
+        result = graph('out', filename=filename)
+        window.setImage(result)
         
-
-
     window.frameChanged.connect(update)
 
     window.show()
