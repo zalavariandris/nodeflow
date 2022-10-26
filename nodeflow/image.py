@@ -7,16 +7,23 @@ from PIL import Image
 from PIL.ImageEnhance import Contrast
 import numpy as np
 
+
+# === DATA ===
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class Texture:
+    def __init__(self, tex:int=-1):
+        if self.tex == -1:
+            self.tex = glGenTextures( 1 )
+
+    def __del__(self):
+        if self.tex>0:
+            glDeleteTextures([self.tex])
+
+# === IMAGE OPERATORS ===
 from urllib.request import urlopen
 import imageio
-
-
-
-class Texture:
-    def __init__(self):
-        pass
-
-
 class Read(Operator):
     def __init__(self, url:Constant):
         super().__init__(url)
@@ -24,25 +31,30 @@ class Read(Operator):
     def __call__(self, url:Path):
         return Image.open(urlopen(url))
 
-
+# === OPENGL OPERATORS ===
+from OpenGL.GL import *
 class ToTexture(Operator):
-    def __init__(self, image):
+    def __init__(self, image: Operator):
         super().__init__(image)
 
-    def __call__(self, img):
-        texture = Texture()
-        return texture
+    def __call__(self, img:np.ndarray):
+        if self.tex is not None:
+            glDeleteTextures([self.tex])
+
+        from gui.glhelpers import make_texture
+        self.tex = make_texture(img)
+        return Texture(self.tex)
 
 
 class ToRec709(Operator):
     def __init__(self, texture:Operator):
         super().__init__(texture)
 
-    def __call__(self, img: Image):
+    def __call__(self, texture: Texture):
         colored_texture = "HELLO COLORSPACE"
         return colored_texture
 
-
+# === MAIN ===
 if __name__ == "__main__":
     import sys
     from gui.videoplayer import VideoPlayer

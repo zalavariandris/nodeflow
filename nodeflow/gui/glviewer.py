@@ -7,7 +7,7 @@ import glm
 import ctypes
 
 # PySide
-from PySide2.QtWidgets import QOpenGLWidget, QApplication
+from PySide2.QtWidgets import QWidget, QOpenGLWidget, QApplication
 from PySide2.QtGui import QMouseEvent,QWheelEvent
 from PySide2.QtCore import Qt
 
@@ -192,30 +192,39 @@ class ImGeo:
         return ImGeo(GL_TRIANGLES, positions, indices, uvs, normals)
 
 
-class GLViewer(QOpenGLWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("GLViewer")
-        self.setMouseTracking(True)
-        
 
-        self.resize(400, 400)
+class GLViewer( QOpenGLWidget):
+    def __init__(self, parent=None):
+        QOpenGLWidget.__init__(self, parent)
+        
+        #
+        self.setWindowTitle("GLViewer")
+        #self.resize(400, 400)
+        self.setMouseTracking(True)
+        self.mouse_buffer = None
+
+        
+        # create camera
         self.camera = Camera()
         self.camera.eye=glm.vec3(0, 1, -5)
         self.camera.target=glm.vec3(0,0,0)
         self.camera.ortho=False
-        self.model = glm.mat4(1.0)
-        self.mouse_pressed = False
+        self.camera.aspect = self.size().width() / self.size().height()
 
-        self.mouse_buffer = None
+        # create model matrix for image plane
+        self.model = glm.mat4(1.0)
+
+        # content
         self.tex = None
 
+    # OpenGL
     def initializeGL(self):
         gl_version = glGetString(GL_VERSION).decode()
         shading_language_version = glGetString(GL_SHADING_LANGUAGE_VERSION).decode()
         print(f"Initalize OpenGL: {gl_version}, {shading_language_version}")
-        
-        glClearColor(0.2, 0.2, 0.2, 1.0)
+        glClearColor(0.2, 0.2, 0.2, 1.0) # set background color
+
+        # Read shader code
         vertex_code = """
             #version 330 core
             in vec3 aPos;
@@ -230,6 +239,7 @@ class GLViewer(QOpenGLWidget):
                 gl_Position = MVP * vec4(aPos, 1.0);
             }
         """
+
         fragment_code = """
             #version 330 core
             in vec2 vUV;
@@ -241,43 +251,48 @@ class GLViewer(QOpenGLWidget):
                 fragColor = vec4(tex.rgb,1.0);
             }
         """
-        self.program = glCreateProgram()
-        vertex_shader = glCreateShader(GL_VERTEX_SHADER)
-        fragment_shader = glCreateShader(GL_FRAGMENT_SHADER)
-        glShaderSource(vertex_shader, vertex_code)
-        glShaderSource(fragment_shader, fragment_code)
 
-        # Compile shaders
+        # Make shaders
+        vertex_shader = glCreateShader(GL_VERTEX_SHADER)
+        glShaderSource(vertex_shader, vertex_code)
         glCompileShader(vertex_shader)
         if not glGetShaderiv(vertex_shader, GL_COMPILE_STATUS):
-            error = glGetShaderInfoLog(vertex_shader).decode()
-            print(error)
-            raise RuntimeError("Shader compilation error")
-                        
+            error = glGetShaderInfoLog(fragment_shader).decode()
+            raise RuntimeError(f"Shader compilation error: {error}") 
+            
+        fragment_shader = glCreateShader(GL_FRAGMENT_SHADER)
+        glShaderSource(fragment_shader, fragment_code)          
         glCompileShader(fragment_shader)
         if not glGetShaderiv(fragment_shader, GL_COMPILE_STATUS):
             error = glGetShaderInfoLog(fragment_shader).decode()
-            print(error)
-            raise RuntimeError("Shader compilation error") 
+            raise RuntimeError(f"Shader compilation error: {error}") 
 
-        # attachs shaders
+        # Make program
+        self.program = glCreateProgram()
         glAttachShader(self.program, vertex_shader)
         glAttachShader(self.program, fragment_shader)
 
-        # link program
         glLinkProgram(self.program)
         if not glGetProgramiv(self.program, GL_LINK_STATUS):
-            print("LINKING ERROR:", glGetProgramInfoLog(self.program))
-            raise RuntimeError('Linking error')
+            error = glGetShaderInfoLog(fragment_shader).decode()
+            raise RuntimeError(f"Program linking error: {error_msg}")
 
-        # detach shaders
-        glDetachShader(self.program, vertex_shader)
-        glDetachShader(self.program, fragment_shader)
+        # Delete shaders
+        glDeleteShader(vertex_shader)
+        glDeleteShader(fragment_shader)
 
-        # VBO
+        # Default uniform values
+        glUseProgram(self.program)
+        loc = glGetUniformLocation(self.program, "MVP")
+        MVP = self.camera.get_projection() * self.camera.get_view()
+        glUniformMatrix4fv(loc, 1, GL_FALSE, glm.value_ptr(MVP))
+        glUseProgram(0)
+
+        # Make Geometry Buffer
         geo = ImGeo.quad()
         self.geo = geo
 
+        # VBO
         pos_vbo = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, pos_vbo)
         glBufferData(GL_ARRAY_BUFFER, geo.positions.nbytes, geo.positions, GL_DYNAMIC_DRAW)
@@ -295,7 +310,7 @@ class GLViewer(QOpenGLWidget):
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
         self.ebo = ebo
 
-        #VAO
+        # VAO
         vao = glGenVertexArrays(1)
         glBindVertexArray(vao)
         loc = glGetAttribLocation(self.program, "aPos")
@@ -315,24 +330,19 @@ class GLViewer(QOpenGLWidget):
              print("aUV attribute is not used")
         self.vao = vao
 
-        # set uniforms
-        
-        glUseProgram(self.program)
-        loc = glGetUniformLocation(self.program, "MVP")
-        MVP = self.camera.get_projection() * self.camera.get_view()
-        glUniformMatrix4fv(loc, 1, GL_FALSE, glm.value_ptr(MVP))
-
     def paintGL(self):
         glClear(GL_COLOR_BUFFER_BIT)
         
+        # use program
         glUseProgram(self.program)
-        
         MVP = self.camera.get_projection() * self.camera.get_view() * self.model
         loc = glGetUniformLocation(self.program, "MVP")
         glUniformMatrix4fv(loc, 1, GL_FALSE, glm.value_ptr(MVP))
 
         # draw geometry
         if self.tex is not None: glBindTexture(GL_TEXTURE_2D, self.tex)
+        
+        # draw geometry
         glBindVertexArray(self.vao)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebo)
         glDrawElements(self.geo.mode, self.geo.indices.size, GL_UNSIGNED_INT, ctypes.c_void_p(0))
@@ -344,6 +354,7 @@ class GLViewer(QOpenGLWidget):
         glViewport(0, 0, w, h)
         self.camera.aspect = w / h
 
+    # event handlers
     def mousePressEvent(self, event:QMouseEvent):
         self.mouse_buffer = event.pos()
 
@@ -370,9 +381,10 @@ class GLViewer(QOpenGLWidget):
         self.mouse_buffer = event.pos()
 
     def wheelEvent(self, event:QWheelEvent):
-        self.camera.dolly(event.angleDelta().y()/360.0*self.camera.get_target_distance()*0.5)
+        self.camera.dolly(-event.angleDelta().y()/360.0*self.camera.get_target_distance()*0.5)
         self.update()
-        
+    
+    # set content
     def setImage(self, img:np.ndarray, internalformat=None):
         assert(self.isValid()) # opengg must be initalized at this point. call widget.show before setting the image
 
@@ -398,11 +410,12 @@ def main():
     UVW = np.dstack([U, V, W])
 
     #QApplication.setAttribute(Qt.AA_UseDesktopOpenGL)
-    a = QApplication(sys.argv)
-    window = GLViewer()
-    window.show()
-    window.setImage(UVW)
-    sys.exit(a.exec_())
+    from darkwindow import DarkWindow
+    app = QApplication(sys.argv)
+    viewer = GLViewer()
+    viewer.show()
+    viewer.setImage(UVW)
+    sys.exit(app.exec_())
 
 if __name__ == "__main__":
     main()
