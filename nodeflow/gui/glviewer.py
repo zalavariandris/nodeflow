@@ -1,3 +1,6 @@
+# A096C005_211203_R33P
+# 
+
 import sys
 import numpy as np
 
@@ -11,9 +14,71 @@ from PySide2.QtWidgets import QWidget, QOpenGLWidget, QApplication
 from PySide2.QtGui import QMouseEvent,QWheelEvent
 from PySide2.QtCore import Qt
 
-from glhelpers import make_texture
-
 # Helpers
+def make_texture(img:np.ndarray, internalformat=None)->int:
+    # GLFormat from numpy shape
+    height, width, channels = img.shape
+    if channels==1:
+        glformat = GL_RED
+    elif channels==2:
+        glformat = GL_RG
+    elif channels==3:
+        glformat = GL_RGB
+    elif channels==4:
+        glformat=GL_RGBA
+    else:
+        raise NotImplementedError
+
+    # GLType from numpy dtype
+    if img.dtype == np.uint8:
+        gltype = GL_UNSIGNED_BYTE
+    elif img.dtype == np.float16:
+        gltype = GL_HALF_FLOAT
+    elif img.dtype == np.float32:
+        gltype = GL_FLOAT
+    else:
+        raise NotImplementedError
+
+    # Match internal format
+    if internalformat is None: 
+        if glformat is GL_RED:
+            if gltype is GL_UNSIGNED_BYTE: internalformat=GL_R8
+            elif gltype is GL_HALF_FLOAT: internalformat=GL_R16F
+            elif gltype is GL_FLOAT: internalformat=GL_R32F
+            else: raise NotImplementedError
+        elif glformat is GL_RG:
+            if gltype is GL_UNSIGNED_BYTE: internalformat=GL_RG8
+            elif gltype is GL_HALF_FLOAT: internalformat=GL_RG16F
+            elif gltype is GL_FLOAT: internalformat=GL_RG32F
+            else: raise NotImplementedError
+        elif glformat is GL_RGB:
+            if gltype is GL_UNSIGNED_BYTE: internalformat=GL_RGB8
+            elif gltype is GL_HALF_FLOAT: internalformat=GL_RGB16F
+            elif gltype is GL_FLOAT: internalformat=GL_RGB32F
+            else: raise NotImplementedError
+        elif glformat is GL_RGBA:
+            if gltype is GL_UNSIGNED_BYTE: internalformat=GL_RGBA8
+            elif gltype is GL_HALF_FLOAT: internalformat=GL_RGBA16F
+            elif gltype is GL_FLOAT: internalformat=GL_RGBA32F
+            else: raise NotImplementedError
+        else:
+            raise NotImplementedError
+
+    print(f"Texture Format: {glformat!r}-{gltype!r} -> {internalformat!r}")
+
+    # Update texture
+    tex = glGenTextures( 1 )
+    glBindTexture(GL_TEXTURE_2D, tex)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER) # parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+    glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, height, 0, glformat, gltype, img) # to GPU
+    # glGenerateMipmap(GL_TEXTURE_2D)
+    glBindTexture(GL_TEXTURE_2D, 0)
+
+    return tex
+
 def ray_plane_intersection(p0:glm.vec3, p1:glm.vec3, p_co:glm.vec3, p_no:glm.vec3, epsilon:float = 1e-6)->glm.vec3:
     """
     p0, p1 : Define the line.
@@ -192,6 +257,85 @@ class ImGeo:
         return ImGeo(GL_TRIANGLES, positions, indices, uvs, normals)
 
 
+class ImagePlane:
+    def __init__(self):
+        # Make Geometry Buffer
+        self.geo = ImGeo.quad()
+
+        # vertex buffers
+        self.ebo = None
+        self.vao = None
+
+        # texture
+        self.tex = None
+
+        # transform
+        self.model = glm.mat4(1)
+
+    def initializeGL(self, program:int):
+        # VBO
+        pos_vbo = glGenBuffers(1)
+        glBindBuffer(GL_ARRAY_BUFFER, pos_vbo)
+        glBufferData(GL_ARRAY_BUFFER, self.geo.positions.nbytes, self.geo.positions, GL_DYNAMIC_DRAW)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+
+        uv_vbo = glGenBuffers(1)
+        glBindBuffer(GL_ARRAY_BUFFER, uv_vbo)
+        glBufferData(GL_ARRAY_BUFFER, self.geo.uvs.nbytes, self.geo.uvs, GL_DYNAMIC_DRAW)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+
+        # EBO
+        ebo = glGenBuffers(1)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, self.geo.indices.nbytes, self.geo.indices, GL_STATIC_DRAW)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+        self.ebo = ebo
+
+        # VAO
+        vao = glGenVertexArrays(1)
+        glBindVertexArray(vao)
+        loc = glGetAttribLocation(program, "aPos")
+        if loc >=0:
+            glEnableVertexAttribArray(loc)
+            glBindBuffer(GL_ARRAY_BUFFER, pos_vbo)
+            glVertexAttribPointer(loc, 3, GL_FLOAT, False, self.geo.positions.strides[0], ctypes.c_void_p(0))
+        else:
+             print("aPos attribute is not used")
+
+        loc = glGetAttribLocation(program, "aUV")
+        if loc >=0:
+            glEnableVertexAttribArray(loc)
+            glBindBuffer(GL_ARRAY_BUFFER, uv_vbo)
+            glVertexAttribPointer(loc, 2, GL_FLOAT, False, self.geo.uvs.strides[0], ctypes.c_void_p(0))
+        else:
+             print("aUV attribute is not used")
+        self.vao = vao
+
+
+    def paintGL(self):
+        # draw geometry
+        if self.tex is not None: glBindTexture(GL_TEXTURE_2D, self.tex)
+        
+        # draw geometry
+        glBindVertexArray(self.vao)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebo)
+        glDrawElements(self.geo.mode, self.geo.indices.size, GL_UNSIGNED_INT, ctypes.c_void_p(0))
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+        glBindVertexArray(0)
+        glBindTexture(GL_TEXTURE_2D, 0)
+
+    def setImage(self, img:np.ndarray):
+        image_aspect = img.shape[1]/ img.shape[0]
+        self.model = glm.scale(glm.mat4(1), glm.vec3(image_aspect, 1, 1))
+
+        tex = make_texture(img)
+        
+        self.setTexture(tex)
+
+    def setTexture(self, tex: int):
+        if self.tex is not None: glDeleteTextures([self.tex]) # Delete previous texture
+        self.tex = tex
+
 
 class GLViewer( QOpenGLWidget):
     def __init__(self, parent=None):
@@ -211,11 +355,8 @@ class GLViewer( QOpenGLWidget):
         self.camera.ortho=False
         self.camera.aspect = self.size().width() / self.size().height()
 
-        # create model matrix for image plane
-        self.model = glm.mat4(1.0)
-
-        # content
-        self.tex = None
+        # create image plane
+        self.imageplane = ImagePlane()
 
     # OpenGL
     def initializeGL(self):
@@ -288,67 +429,20 @@ class GLViewer( QOpenGLWidget):
         glUniformMatrix4fv(loc, 1, GL_FALSE, glm.value_ptr(MVP))
         glUseProgram(0)
 
-        # Make Geometry Buffer
-        geo = ImGeo.quad()
-        self.geo = geo
-
-        # VBO
-        pos_vbo = glGenBuffers(1)
-        glBindBuffer(GL_ARRAY_BUFFER, pos_vbo)
-        glBufferData(GL_ARRAY_BUFFER, geo.positions.nbytes, geo.positions, GL_DYNAMIC_DRAW)
-        glBindBuffer(GL_ARRAY_BUFFER, 0)
-
-        uv_vbo = glGenBuffers(1)
-        glBindBuffer(GL_ARRAY_BUFFER, uv_vbo)
-        glBufferData(GL_ARRAY_BUFFER, geo.uvs.nbytes, geo.uvs, GL_DYNAMIC_DRAW)
-        glBindBuffer(GL_ARRAY_BUFFER, 0)
-
-        # EBO
-        ebo = glGenBuffers(1)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, geo.indices.nbytes, geo.indices, GL_STATIC_DRAW)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
-        self.ebo = ebo
-
-        # VAO
-        vao = glGenVertexArrays(1)
-        glBindVertexArray(vao)
-        loc = glGetAttribLocation(self.program, "aPos")
-        if loc >=0:
-            glEnableVertexAttribArray(loc)
-            glBindBuffer(GL_ARRAY_BUFFER, pos_vbo)
-            glVertexAttribPointer(loc, 3, GL_FLOAT, False, geo.positions.strides[0], ctypes.c_void_p(0))
-        else:
-             print("aPos attribute is not used")
-
-        loc = glGetAttribLocation(self.program, "aUV")
-        if loc >=0:
-            glEnableVertexAttribArray(loc)
-            glBindBuffer(GL_ARRAY_BUFFER, uv_vbo)
-            glVertexAttribPointer(loc, 2, GL_FLOAT, False, geo.uvs.strides[0], ctypes.c_void_p(0))
-        else:
-             print("aUV attribute is not used")
-        self.vao = vao
+        # initalize imageplane
+        self.imageplane.initializeGL(self.program)
 
     def paintGL(self):
         glClear(GL_COLOR_BUFFER_BIT)
         
         # use program
         glUseProgram(self.program)
-        MVP = self.camera.get_projection() * self.camera.get_view() * self.model
+        
+        # draw imageplane
+        MVP = self.camera.get_projection() * self.camera.get_view() * self.imageplane.model
         loc = glGetUniformLocation(self.program, "MVP")
         glUniformMatrix4fv(loc, 1, GL_FALSE, glm.value_ptr(MVP))
-
-        # draw geometry
-        if self.tex is not None: glBindTexture(GL_TEXTURE_2D, self.tex)
-        
-        # draw geometry
-        glBindVertexArray(self.vao)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebo)
-        glDrawElements(self.geo.mode, self.geo.indices.size, GL_UNSIGNED_INT, ctypes.c_void_p(0))
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
-        glBindVertexArray(0)
-        glBindTexture(GL_TEXTURE_2D, 0)
+        self.imageplane.paintGL()
 
     def resizeGL(self, w, h):
         glViewport(0, 0, w, h)
@@ -385,25 +479,16 @@ class GLViewer( QOpenGLWidget):
         self.update()
     
     # set content
-    def setImage(self, img:np.ndarray, internalformat=None):
-        assert(self.isValid()) # opengg must be initalized at this point. call widget.show before setting the image
+    def setImage(self, img:np.ndarray):
+        assert(self.isValid()) # opengl must be initalized at this point. call widget.show before setting the image
+        self.imageplane.setImage(img)
 
-        image_aspect = img.shape[1]/ img.shape[0]
-        self.model = glm.scale(glm.mat4(1), glm.vec3(image_aspect, 1, 1))
-
-        tex = make_texture(img)
-        
-        self.setTexture(tex)
-
-    def setTexture(self, tex: int):
-        if self.tex is not None: glDeleteTextures([self.tex]) # Delete previous texture
-        self.tex = tex
+    def setTexture(self, tex:int):
+        self.imageplane.setTexture(tex)
         self.update()
+        
 
-
-
-
-def main():
+if __name__ == "__main__":
     # Create UV image gradient
     U, V = np.mgrid[0:255:720j, 0:255:1280j].astype(np.uint8)
     W = np.full(shape=U.shape, fill_value=0, dtype=np.uint8)
@@ -416,6 +501,3 @@ def main():
     viewer.show()
     viewer.setImage(UVW)
     sys.exit(app.exec_())
-
-if __name__ == "__main__":
-    main()

@@ -1,6 +1,5 @@
-from typing import Union, List, Dict, Any, Callable
+from typing import Union, List, Dict, Any
 from collections import OrderedDict
-import uuid
 
 from collections import Counter
 
@@ -10,11 +9,11 @@ class Operator:
         self.args = args
         self.kwargs = kwargs
         self.name = name
-        if not self.name:
+        if self.name is None:
             self.name = f"{self.__class__.__name__}"
         self.namecounter[self.name]+=1
         if self.namecounter[self.name]>0:
-            self.name  += "#{:03}".format(self.namecounter[self.name])
+            self.name  += "#{:03d}".format(self.namecounter[self.name])
 
     def __hash__(self):
         return id(self)
@@ -57,6 +56,20 @@ def test_dependency_order(ordered_nodes):
         for S in N.dependencies():
             assert ordered_nodes.index(S) < ordered_nodes.index(N)
 
+def graph(root:Operator):
+    # Run a depth first search on root node to create the dependency graph
+    # order is important when evaluating
+    G: Dict[Operator, List[Operator]] = OrderedDict()
+    queue = [root]
+    while queue:
+        N = queue.pop()
+        if N not in G:
+            G[N] = list()
+            for S in N.dependencies():
+                queue.append(S)
+                G[N].append(S)
+
+    return G
 
 def evaluate(root:Operator, verbose=False):
     """Evaluate Graph"""
@@ -124,11 +137,11 @@ def evaluate(root:Operator, verbose=False):
     return value
 
 
-
 if __name__ == "__main__":
     import numpy as np
-        
-
+    op = Constant("hello")
+    result = evaluate(op)
+    print(result)
 
 
 

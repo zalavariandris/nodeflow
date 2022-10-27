@@ -45,7 +45,7 @@ def Divide(a:int, b:int):
 
 if __name__ == "__main__":
 
-    from core import evaluate
+    from core import evaluate, graph
     one = Constant(1)
     five = Constant(5)
     plus = Plus(one, five)
@@ -53,5 +53,14 @@ if __name__ == "__main__":
     divide = Divide(plus,five)
 
     result = evaluate(divide, verbose=True)
+
+    import matplotlib.pyplot as plt
+    import networkx as nx
+    
+
+    G = nx.DiGraph( graph(divide) ).reverse()
+    plt.figure(figsize=(8,6))
+    nx.draw_spectral(G, with_labels=True)
+    plt.show()
 
     print(result)

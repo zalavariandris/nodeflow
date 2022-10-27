@@ -1,136 +1,85 @@
-from typing import Callable, Any, Hashable
+from typing import Tuple
+from webbrowser import Opera
 from core import Operator, Constant, evaluate
 from pathlib import Path
 
-import PIL
-from PIL import Image
-from PIL.ImageEnhance import Contrast
 import numpy as np
 
 
-# === DATA ===
-from dataclasses import dataclass
-
-@dataclass(frozen=True)
-class Texture:
-    def __init__(self, tex:int=-1):
-        if self.tex == -1:
-            self.tex = glGenTextures( 1 )
-
-    def __del__(self):
-        if self.tex>0:
-            glDeleteTextures([self.tex])
-
-# === IMAGE OPERATORS ===
-from urllib.request import urlopen
-import imageio
 class Read(Operator):
-    def __init__(self, url:Constant):
-        super().__init__(url)
+    def __init__(self, filename:Operator, name=None):
+        super().__init__(filename, name=name)
 
-    def __call__(self, url:Path):
-        return Image.open(urlopen(url))
+    def __call__(self, filename:str):
+        return cv2.imread(filename).astype(np.float32)/255.0
 
-# === OPENGL OPERATORS ===
-from OpenGL.GL import *
-class ToTexture(Operator):
-    def __init__(self, image: Operator):
-        super().__init__(image)
+
+class Ramp(Operator):
+    def __init__(self, size: Tuple[int, int], name:str=None):
+        super().__init__(name=name)
+        self.width, self.height = size
+
+    def __call__(self):
+        R, G = np.mgrid[0:1.0:720j, 0:1.0:1280j].astype(np.float32)
+        B = np.zeros(shape=R.shape, dtype=np.float32)
+        rgb = np.dstack([R, G, B])
+        return rgb
+
+
+import cv2
+class GaussianBlur(Operator):
+    def __init__(self, img:Operator, name=None):
+        super().__init__(img, name=name)
 
     def __call__(self, img:np.ndarray):
-        if self.tex is not None:
-            glDeleteTextures([self.tex])
-
-        from gui.glhelpers import make_texture
-        self.tex = make_texture(img)
-        return Texture(self.tex)
+        return cv2.GaussianBlur(img,(75,75),0)
 
 
-class ToRec709(Operator):
-    def __init__(self, texture:Operator):
-        super().__init__(texture)
+class BilateralFilter(Operator):
+    def __init__(self, img:Operator, name=None):
+        super().__init__(img, name=name)
 
-    def __call__(self, texture: Texture):
-        colored_texture = "HELLO COLORSPACE"
-        return colored_texture
+    def __call__(self, img:np.ndarray):
+        return cv2.bilateralFilter(img,90,75,75)
 
-# === MAIN ===
+
+class Resize(Operator):
+    def __init__(self, img:Operator, size:Operator):
+        super().__init__(img, size)
+
+    def __call__(self, img:np.ndarray, size:Tuple[int, int]):
+        return cv2.resize(img, size)
+
+
+class Blend(Operator):
+    def __init__(self, A:Operator, B:Operator, mix:Operator):
+        super().__init__(A, B, mix)
+
+    def __call__(self, A:np.ndarray, B:np.ndarray, mix:float):
+        assert(A.shape == B.shape)
+        return A*(1-mix) + B*mix
+
+
 if __name__ == "__main__":
-    import sys
-    from gui.videoplayer import VideoPlayer
-    from PySide2.QtCore import Qt
-    from PySide2.QtGui import QImage, QPixmap
-    from PySide2.QtWidgets import QApplication, QWidget
-    from PySide2.QtWidgets import QSlider, QLabel, QVBoxLayout
-    from PIL import Image
-    import re
+    filename = Constant("C:/users/and/desktop/nodeflow/tests/SMPTE_colorbars/SMPTE_colorbars_00001.jpg")
+    read = Read(filename)
+    blur = GaussianBlur(read)
+    bilateral = BilateralFilter(read)
+    ramp = Ramp((512,512))
+    thumb_read = Resize(read, Constant((128,128)))
+    thumb_ramp = Resize(ramp, Constant((128,128)))
+    thumbs_blend = Blend(thumb_read, thumb_ramp, Constant(0.5))
 
-    import pythonflow as pf
+    import matplotlib.pyplot as plt
+    import math
+    ops = [read, blur, bilateral, ramp, thumb_read, thumbs_blend]
+    fig = plt.figure()
+    cols = math.ceil(math.sqrt(len(ops)))
+    rows = math.ceil(len(ops)/cols)
+    for i, op in enumerate(ops):
+        ax = fig.add_subplot(rows,cols,i+1)
+        ax.set_title(op.name)
+        ax.imshow(evaluate(op))
 
-    the_cache = dict()
-    def save_cache(key, obj):
-        print("save cache")
-        the_cache[key] = obj
-
-    def load_cache(key):
-
-        print("load cache", key in the_cache)
-        return the_cache[key]
-
-    # Create Graph
-    with pf.Graph() as graph:
-        imageio = pf.import_('imageio')
-        filename = pf.placeholder('filename')
-        image = (imageio.imread(filename).set_name('imread')[..., :3] / 255.0)
-        cached = pf.cache(image, load_cache, save_cache, key=filename)
-        cached.set_name("out")
-
-
-    #print(result)
-    #filename = Placeholder()
-    #read1 = Read(filename)
-    #tex = ToTexture(read1)
-    #rec709 = ToRec709(tex)
-    
-    # cache works if call Request print only once!
-    #result = evaluate(read1)
-
-    # Create GUI
-    app = QApplication()
-    window = VideoPlayer()
-
-    def hashtags_to_printf(filename):
-        import re
-        """convert hashtags to printf"""
-        hashtag_match = re.search("#+", filename) # match hashtags
-        if hashtag_match is not None: # convert hastag to printf style
-            span = hashtag_match.span()
-            filename = filename[0:span[0]]+f"%0{span[1]-span[0]}d"+filename[span[1]:] # convert to printf style
-            return filename
-        else:
-            raise NotImplementedError
-
-    def update():
-        #
-        frame = window.frame()
-        # run graph
-        filename = "C:/Users/and/Desktop/SMPTE_colorbars/SMPTE_colorbars_#####.jpg"
-        filename = hashtags_to_printf(filename)
-        filename = filename % frame
-        #read1 = Read(filename)
-
-        result = graph('out', filename=filename)
-        window.setImage(result)
-        
-    window.frameChanged.connect(update)
-
-    window.show()
-    sys.exit(app.exec_())
-
-    filename = Constant("https://www.andraszalavari.com/assets/media/200130_MG_1696.jpg")
-
-
-    print(np.array(result))
-
-
+    plt.show()
 
