@@ -11,6 +11,8 @@ class Read(Operator):
         super().__init__(filename, name=name)
 
     def __call__(self, filename:str):
+        if not Path(filename).exists():
+            raise FileNotFoundError(filename)
         return cv2.imread(filename).astype(np.float32)/255.0
 
 
@@ -61,6 +63,7 @@ class Blend(Operator):
 
 
 if __name__ == "__main__":
+
     filename = Constant("C:/users/and/desktop/nodeflow/tests/SMPTE_colorbars/SMPTE_colorbars_00001.jpg")
     read = Read(filename)
     blur = GaussianBlur(read)

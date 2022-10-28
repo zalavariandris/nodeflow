@@ -18,9 +18,9 @@ class Texture:
 
 
     def __del__(self):
-        if self.tex>0:
+        if self.tex>0 and glIsTexture(self.tex):
             print("delete texture:", self.tex, type(self.tex))
-            #glDeleteTextures([self.tex])
+            glDeleteTextures(1, [self.tex])
 
 
 class ToTexture(Operator):
@@ -92,12 +92,13 @@ class ToTexture(Operator):
 
         
 class ApplyShader(Operator):
-    def __init__(self, input_texture:Operator):
+    def __init__(self, input_texture:Operator, fragment_code: str):
         super().__init__(input_texture)
         self.viewport = (0,0,512,512)
 
         self.init_texture()
         self.init_fbo()
+        self.fragment_code = fragment_code
         self.init_shaders()
         self.init_quad()
 
@@ -146,20 +147,8 @@ class ApplyShader(Operator):
             error_msg = glGetShaderInfoLog(vertex_shader)
             raise RuntimeError(f"Shader compilation error: {error_msg}") 
 
-        fragment_code = """
-            #version 330 core
-
-            in vec2 vUV;
-            uniform sampler2D textureMap;
-            out vec4 fragColor;
-            void main()
-            {
-                vec4 tex = texture(textureMap, vUV);
-                fragColor = vec4(tex.rgb*1.0, 1.0);
-            }
-        """
         fragment_shader = glCreateShader(GL_FRAGMENT_SHADER)
-        glShaderSource(fragment_shader, fragment_code)
+        glShaderSource(fragment_shader, self.fragment_code)
         glCompileShader(fragment_shader)
         if not glGetShaderiv(fragment_shader, GL_COMPILE_STATUS):
             error_msg = glGetShaderInfoLog(fragment_shader)
@@ -248,9 +237,12 @@ class ApplyShader(Operator):
 
 
     def __del__(self):
-        glDeleteTextures([self.tex])
-        glDeleteFramebuffers([self.fbo])
-        glDeleteProgram(self.program)
+        if self.tex is not None and glIsTexture(self.tex):
+            glDeleteTextures(1, [self.tex]) # the error when exit probably occures because the opengl context was already cleaned up
+        if self.fbo is not None and glIsFramebuffer(self.fbo):
+            glDeleteFramebuffers(1, [self.fbo])
+        if self.program is not None and glIsProgram(self.program):
+            glDeleteProgram(self.program)
 
     def __call__(self, input_texture: Texture)->Texture:
         # Begin render to texture
@@ -286,11 +278,22 @@ if __name__ == "__main__":
 
     # Graph
     ramp = Ramp((512,512))
-    filename = Constant("C:/users/and/desktop/nodeflow/tests/SMPTE_colorbars/SMPTE_colorbars_00001.jpg")
+    filename = Constant("C:/Users/andris/Desktop/nodeflow/tests/SMPTE_colorbars/SMPTE_colorbars_00001.jpg")
     read = Read(filename)
     to_tex = ToTexture(read)
-    shd = ApplyShader(to_tex)
-    out = sdh
+    shd = ApplyShader(to_tex, """
+        #version 330 core
+
+        in vec2 vUV;
+        uniform sampler2D textureMap;
+        out vec4 fragColor;
+        void main()
+        {
+            vec4 tex = texture(textureMap, vUV);
+            fragColor = vec4(tex.rgb*0.3, 1.0);
+        }
+    """)
+    out = shd
 
     # display
     result = evaluate(out)
