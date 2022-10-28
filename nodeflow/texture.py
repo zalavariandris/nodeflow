@@ -16,10 +16,11 @@ class Texture:
             self.tex = int(glGenTextures( 1 ))
             print(self.tex)
 
+
     def __del__(self):
         if self.tex>0:
             print("delete texture:", self.tex, type(self.tex))
-            glDeleteTextures([self.tex])
+            #glDeleteTextures([self.tex])
 
 
 class ToTexture(Operator):
@@ -90,13 +91,186 @@ class ToTexture(Operator):
         return Texture(tex) # take ownership, delete if unused
 
         
-class ToRec709(Operator):
-    def __init__(self, texture:Operator):
-        super().__init__(texture)
+class TextureOperator(Operator):
+    def __init__(self, input_texture:Operator):
+        super().__init__(input_texture)
+        self.viewport = (0,0,512,512)
 
-    def __call__(self, texture: Texture):
-        colored_texture = "HELLO COLORSPACE"
-        return colored_texture
+        self.init_texture()
+        self.init_fbo()
+        self.init_shaders()
+        self.init_quad()
+
+    def init_texture(self):
+        self.tex = glGenTextures(1)
+        glBindTexture(GL_TEXTURE_2D, self.tex)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER) # parameters
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+
+        internalformat = GL_RGBA32F
+        glTexImage2D(GL_TEXTURE_2D, 0, internalformat, 512,512, 0, GL_RGBA, GL_FLOAT, None)
+
+        glBindTexture(GL_TEXTURE_2D, 0)
+
+    def init_fbo(self):
+        self.fbo = glGenFramebuffers(1)
+        glBindFramebuffer(GL_FRAMEBUFFER, self.fbo)
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, self.tex, 0)
+        if glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE:
+            raise RuntimeError("ERROR::FRAMEBUFFER:: Framebuffer is not complete!")
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+    def init_shaders(self):
+        """compile shaders and link program"""
+
+        vertex_code = """
+            #version 330 core
+
+            in vec3 aPos;
+            in vec2 aUV;
+
+            out vec2 vUV;
+
+            void main()
+            {
+                vUV = aUV;
+                gl_Position = vec4(aPos, 1.0);
+            }
+        """
+        vertex_shader = glCreateShader(GL_VERTEX_SHADER)
+        glShaderSource(vertex_shader, vertex_code)
+        glCompileShader(vertex_shader)
+        if not glGetShaderiv(vertex_shader, GL_COMPILE_STATUS):
+            error_msg = glGetShaderInfoLog(vertex_shader)
+            raise RuntimeError(f"Shader compilation error: {error_msg}") 
+
+        fragment_code = """
+            #version 330 core
+
+            in vec2 vUV;
+            uniform sampler2D textureMap;
+            out vec4 fragColor;
+            void main()
+            {
+                vec4 tex = texture(textureMap, vUV);
+                fragColor = vec4(tex.rgb*1.0, 1.0);
+            }
+        """
+        fragment_shader = glCreateShader(GL_FRAGMENT_SHADER)
+        glShaderSource(fragment_shader, fragment_code)
+        glCompileShader(fragment_shader)
+        if not glGetShaderiv(fragment_shader, GL_COMPILE_STATUS):
+            error_msg = glGetShaderInfoLog(fragment_shader)
+            raise RuntimeError(f"Shader compilation error: {error_msg}")
+
+        # Make program
+        program = glCreateProgram()
+        glAttachShader(program, vertex_shader)
+        glAttachShader(program, fragment_shader)
+
+        glLinkProgram(program)
+        if not glGetProgramiv(program, GL_LINK_STATUS):
+            error_msg = glGetShaderInfoLog(fragment_shader)
+            raise RuntimeError(f"Program linking error: {error_msg}")
+
+        self.program = program
+
+        # Delete shaders
+        glDeleteShader(vertex_shader)
+        glDeleteShader(fragment_shader)
+
+        # Default uniform values
+        glUseProgram(self.program)
+        glUseProgram(0)
+
+    def init_quad(self):
+        """Create image plane"""
+        # Geometry data
+        positions = np.array([
+            (-1,-1, 0), 
+            ( 1,-1, 0), 
+            ( 1, 1, 0), 
+            (-1, 1, 0)
+        ], dtype=np.float32)
+
+        uvs = np.array([
+            (1,1), (0,1), (0, 0), (1, 0)
+        ], dtype=np.float32)
+
+        normals = np.array([
+            (0,0,-1), (0,0,-1), (0,0,-1), (0,0,-1)
+        ], dtype=np.float32)
+
+        indices = np.array([
+            0,1,2, 0,2,3
+        ], dtype=np.uint)
+
+        # Geometry buffers
+        # VBO
+        pos_vbo = glGenBuffers(1)
+        glBindBuffer(GL_ARRAY_BUFFER, pos_vbo)
+        glBufferData(GL_ARRAY_BUFFER, positions.nbytes, positions, GL_DYNAMIC_DRAW)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+
+        uv_vbo = glGenBuffers(1)
+        glBindBuffer(GL_ARRAY_BUFFER, uv_vbo)
+        glBufferData(GL_ARRAY_BUFFER, uvs.nbytes, uvs, GL_DYNAMIC_DRAW)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+
+        # EBO
+        ebo = glGenBuffers(1)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.nbytes, indices, GL_STATIC_DRAW)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+        self.ebo = ebo
+
+        # VAO
+        vao = glGenVertexArrays(1)
+        glBindVertexArray(vao)
+        loc = glGetAttribLocation(self.program, "aPos")
+        if loc >=0:
+            glEnableVertexAttribArray(loc)
+            glBindBuffer(GL_ARRAY_BUFFER, pos_vbo)
+            glVertexAttribPointer(loc, 3, GL_FLOAT, False, positions.strides[0], ctypes.c_void_p(0))
+        else:
+             print("aPos attribute is not used")
+
+        loc = glGetAttribLocation(self.program, "aUV")
+        if loc >=0:
+            glEnableVertexAttribArray(loc)
+            glBindBuffer(GL_ARRAY_BUFFER, uv_vbo)
+            glVertexAttribPointer(loc, 2, GL_FLOAT, False, uvs.strides[0], ctypes.c_void_p(0))
+        else:
+             print("aUV attribute is not used")
+        self.vao = vao
+
+
+    def __del__(self):
+        glDeleteTextures(self.tex)
+        glDeleteFramebuffers(self.fbo)
+        glDeleteProgram(self.program)
+
+    def __call__(self, input_texture: Texture)->Texture:
+        # Begin render to texture
+        glUseProgram(self.program)
+        glBindFramebuffer(GL_FRAMEBUFFER, self.fbo)
+        glViewport(*self.viewport)
+
+        # Draw on texture
+        glBindTexture(GL_TEXTURE_2D, input_texture.tex)
+        glBindVertexArray(self.vao)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebo)
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, ctypes.c_void_p(0))
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+        glBindVertexArray(0)
+        glBindTexture(GL_TEXTURE_2D, 0)
+
+        # End render to Texture
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+        return Texture(self.tex)
+
 
 if __name__ == "__main__":
     import sys
@@ -115,7 +289,8 @@ if __name__ == "__main__":
     filename = Constant("C:/users/and/desktop/nodeflow/tests/SMPTE_colorbars/SMPTE_colorbars_00001.jpg")
     read = Read(filename)
     to_tex = ToTexture(read)
-    out = to_tex
+    rec709 = ToRec709(to_tex)
+    out = rec709
 
     # display
     result = evaluate(out)

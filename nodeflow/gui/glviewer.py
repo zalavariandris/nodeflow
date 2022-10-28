@@ -14,71 +14,8 @@ from PySide2.QtWidgets import QWidget, QOpenGLWidget, QApplication
 from PySide2.QtGui import QMouseEvent,QWheelEvent
 from PySide2.QtCore import Qt
 
+# CAMERA
 # Helpers
-def make_texture(img:np.ndarray, internalformat=None)->int:
-    # GLFormat from numpy shape
-    height, width, channels = img.shape
-    if channels==1:
-        glformat = GL_RED
-    elif channels==2:
-        glformat = GL_RG
-    elif channels==3:
-        glformat = GL_RGB
-    elif channels==4:
-        glformat=GL_RGBA
-    else:
-        raise NotImplementedError
-
-    # GLType from numpy dtype
-    if img.dtype == np.uint8:
-        gltype = GL_UNSIGNED_BYTE
-    elif img.dtype == np.float16:
-        gltype = GL_HALF_FLOAT
-    elif img.dtype == np.float32:
-        gltype = GL_FLOAT
-    else:
-        raise NotImplementedError
-
-    # Match internal format
-    if internalformat is None: 
-        if glformat is GL_RED:
-            if gltype is GL_UNSIGNED_BYTE: internalformat=GL_R8
-            elif gltype is GL_HALF_FLOAT: internalformat=GL_R16F
-            elif gltype is GL_FLOAT: internalformat=GL_R32F
-            else: raise NotImplementedError
-        elif glformat is GL_RG:
-            if gltype is GL_UNSIGNED_BYTE: internalformat=GL_RG8
-            elif gltype is GL_HALF_FLOAT: internalformat=GL_RG16F
-            elif gltype is GL_FLOAT: internalformat=GL_RG32F
-            else: raise NotImplementedError
-        elif glformat is GL_RGB:
-            if gltype is GL_UNSIGNED_BYTE: internalformat=GL_RGB8
-            elif gltype is GL_HALF_FLOAT: internalformat=GL_RGB16F
-            elif gltype is GL_FLOAT: internalformat=GL_RGB32F
-            else: raise NotImplementedError
-        elif glformat is GL_RGBA:
-            if gltype is GL_UNSIGNED_BYTE: internalformat=GL_RGBA8
-            elif gltype is GL_HALF_FLOAT: internalformat=GL_RGBA16F
-            elif gltype is GL_FLOAT: internalformat=GL_RGBA32F
-            else: raise NotImplementedError
-        else:
-            raise NotImplementedError
-
-    print(f"Texture Format: {glformat!r}-{gltype!r} -> {internalformat!r}")
-
-    # Update texture
-    tex = glGenTextures( 1 )
-    glBindTexture(GL_TEXTURE_2D, tex)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER) # parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-    glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, height, 0, glformat, gltype, img) # to GPU
-    # glGenerateMipmap(GL_TEXTURE_2D)
-    glBindTexture(GL_TEXTURE_2D, 0)
-
-    return tex
-
 def ray_plane_intersection(p0:glm.vec3, p1:glm.vec3, p_co:glm.vec3, p_no:glm.vec3, epsilon:float = 1e-6)->glm.vec3:
     """
     p0, p1 : Define the line.
@@ -213,17 +150,107 @@ class Camera:
         self.target = ray_plane_intersection(self.eye, self.eye+forw, glm.vec3(0,0,0), glm.vec3(0,0,1))
         #self.target += dir * (float)offset;
 
-    def to_program(self, program:int, projection_name="projection", view_name="view"):
-        projectionLocation = glGetUniformLocation(program, "projection");
-        glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, glm.value_ptr(self.get_projection()))
-        viewLocation = glGetUniformLocation(program, "view")
-        glUniformMatrix4fv(viewLocation, 1, GL_FALSE, glm.value_ptr(self.get_view()))
+    # def to_program(self, program:int, projection_name="projection", view_name="view"):
+    #     projectionLocation = glGetUniformLocation(program, "projection");
+    #     glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, glm.value_ptr(self.get_projection()))
+    #     viewLocation = glGetUniformLocation(program, "view")
+    #     glUniformMatrix4fv(viewLocation, 1, GL_FALSE, glm.value_ptr(self.get_view()))
 
     def fit(self, width, height):
         camDistance = glm.max(width / 2 / glm.tan(self.fovx / 2), height / 2 / glm.tan(self.fovy / 2))
         self.eye = glm.vec3(width / 2.0, height / 2.0, camDistance)
         self.target = glm.vec3(width / 2.0, height / 2.0, 0.0)
 
+
+# GL_HELPERS
+def make_texture(img:np.ndarray, internalformat=None)->int:
+    # GLFormat from numpy shape
+    height, width, channels = img.shape
+    if channels==1:
+        glformat = GL_RED
+    elif channels==2:
+        glformat = GL_RG
+    elif channels==3:
+        glformat = GL_RGB
+    elif channels==4:
+        glformat=GL_RGBA
+    else:
+        raise NotImplementedError
+
+    # GLType from numpy dtype
+    if img.dtype == np.uint8:
+        gltype = GL_UNSIGNED_BYTE
+    elif img.dtype == np.float16:
+        gltype = GL_HALF_FLOAT
+    elif img.dtype == np.float32:
+        gltype = GL_FLOAT
+    else:
+        raise NotImplementedError
+
+    # Match internal format
+    if internalformat is None: 
+        if glformat is GL_RED:
+            if gltype is GL_UNSIGNED_BYTE: internalformat=GL_R8
+            elif gltype is GL_HALF_FLOAT: internalformat=GL_R16F
+            elif gltype is GL_FLOAT: internalformat=GL_R32F
+            else: raise NotImplementedError
+        elif glformat is GL_RG:
+            if gltype is GL_UNSIGNED_BYTE: internalformat=GL_RG8
+            elif gltype is GL_HALF_FLOAT: internalformat=GL_RG16F
+            elif gltype is GL_FLOAT: internalformat=GL_RG32F
+            else: raise NotImplementedError
+        elif glformat is GL_RGB:
+            if gltype is GL_UNSIGNED_BYTE: internalformat=GL_RGB8
+            elif gltype is GL_HALF_FLOAT: internalformat=GL_RGB16F
+            elif gltype is GL_FLOAT: internalformat=GL_RGB32F
+            else: raise NotImplementedError
+        elif glformat is GL_RGBA:
+            if gltype is GL_UNSIGNED_BYTE: internalformat=GL_RGBA8
+            elif gltype is GL_HALF_FLOAT: internalformat=GL_RGBA16F
+            elif gltype is GL_FLOAT: internalformat=GL_RGBA32F
+            else: raise NotImplementedError
+        else:
+            raise NotImplementedError
+
+    print(f"Texture Format: {glformat!r}-{gltype!r} -> {internalformat!r}")
+
+    # Update texture
+    tex = glGenTextures( 1 )
+    glBindTexture(GL_TEXTURE_2D, tex)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER) # parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+    glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, height, 0, glformat, gltype, img) # to GPU
+    # glGenerateMipmap(GL_TEXTURE_2D)
+    glBindTexture(GL_TEXTURE_2D, 0)
+
+    return tex
+
+def make_shader(shader_type, code):
+    """make and compile shader"""
+    shader = glCreateShader(shader_type)
+    glShaderSource(shader, code)
+    glCompileShader(shader)
+    if not glGetShaderiv(shader, GL_COMPILE_STATUS):
+        error_msg = glGetShaderInfoLog(shader)
+        raise RuntimeError(f"Shader compilation error: {error_msg}") 
+
+    return shader
+
+def make_program(vertex_shader, fragment_shader):
+    """make and link program"""
+    # Make program
+    program = glCreateProgram()
+    glAttachShader(program, vertex_shader)
+    glAttachShader(program, fragment_shader)
+
+    glLinkProgram(program)
+    if not glGetProgramiv(program, GL_LINK_STATUS):
+        error_msg = glGetShaderInfoLog(fragment_shader)
+        raise RuntimeError(f"Program linking error: {error_msg}")
+
+    return program
 
 class ImGeo:
     def __init__(self, mode, positions, indices, uvs, normals):
@@ -255,6 +282,7 @@ class ImGeo:
         ], dtype=np.uint)
 
         return ImGeo(GL_TRIANGLES, positions, indices, uvs, normals)
+
 
 
 class ImagePlane:
@@ -311,7 +339,6 @@ class ImagePlane:
              print("aUV attribute is not used")
         self.vao = vao
 
-
     def paintGL(self):
         # draw geometry
         if self.tex is not None: glBindTexture(GL_TEXTURE_2D, self.tex)
@@ -365,9 +392,10 @@ class GLViewer( QOpenGLWidget):
         print(f"Initalize OpenGL: {gl_version}, {shading_language_version}")
         glClearColor(0.2, 0.2, 0.2, 1.0) # set background color
 
-        # Read shader code
-        vertex_code = """
+        # Make and compile shaders
+        vertex_shader = make_shader(GL_VERTEX_SHADER, """
             #version 330 core
+
             in vec3 aPos;
             in vec2 aUV;
             uniform mat4 MVP;
@@ -379,10 +407,11 @@ class GLViewer( QOpenGLWidget):
                 vUV = aUV;
                 gl_Position = MVP * vec4(aPos, 1.0);
             }
-        """
+        """)
 
-        fragment_code = """
+        fragment_shader = make_shader(GL_FRAGMENT_SHADER, """
             #version 330 core
+
             in vec2 vUV;
             uniform sampler2D textureMap;
             out vec4 fragColor;
@@ -391,32 +420,10 @@ class GLViewer( QOpenGLWidget):
                 vec4 tex = texture(textureMap, vUV);
                 fragColor = vec4(tex.rgb,1.0);
             }
-        """
+        """)
 
-        # Make shaders
-        vertex_shader = glCreateShader(GL_VERTEX_SHADER)
-        glShaderSource(vertex_shader, vertex_code)
-        glCompileShader(vertex_shader)
-        if not glGetShaderiv(vertex_shader, GL_COMPILE_STATUS):
-            error = glGetShaderInfoLog(fragment_shader).decode()
-            raise RuntimeError(f"Shader compilation error: {error}") 
-            
-        fragment_shader = glCreateShader(GL_FRAGMENT_SHADER)
-        glShaderSource(fragment_shader, fragment_code)          
-        glCompileShader(fragment_shader)
-        if not glGetShaderiv(fragment_shader, GL_COMPILE_STATUS):
-            error = glGetShaderInfoLog(fragment_shader).decode()
-            raise RuntimeError(f"Shader compilation error: {error}") 
-
-        # Make program
-        self.program = glCreateProgram()
-        glAttachShader(self.program, vertex_shader)
-        glAttachShader(self.program, fragment_shader)
-
-        glLinkProgram(self.program)
-        if not glGetProgramiv(self.program, GL_LINK_STATUS):
-            error = glGetShaderInfoLog(fragment_shader).decode()
-            raise RuntimeError(f"Program linking error: {error_msg}")
+        # make and link program
+        self.program = make_program(vertex_shader, fragment_shader)
 
         # Delete shaders
         glDeleteShader(vertex_shader)
@@ -436,6 +443,7 @@ class GLViewer( QOpenGLWidget):
         glClear(GL_COLOR_BUFFER_BIT)
         
         # use program
+        glViewport(0,0,self.width(), self.height())
         glUseProgram(self.program)
         
         # draw imageplane
