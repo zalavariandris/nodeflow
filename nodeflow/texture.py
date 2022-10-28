@@ -91,7 +91,7 @@ class ToTexture(Operator):
         return Texture(tex) # take ownership, delete if unused
 
         
-class TextureOperator(Operator):
+class ApplyShader(Operator):
     def __init__(self, input_texture:Operator):
         super().__init__(input_texture)
         self.viewport = (0,0,512,512)
@@ -248,8 +248,8 @@ class TextureOperator(Operator):
 
 
     def __del__(self):
-        glDeleteTextures(self.tex)
-        glDeleteFramebuffers(self.fbo)
+        glDeleteTextures([self.tex])
+        glDeleteFramebuffers([self.fbo])
         glDeleteProgram(self.program)
 
     def __call__(self, input_texture: Texture)->Texture:
@@ -289,8 +289,8 @@ if __name__ == "__main__":
     filename = Constant("C:/users/and/desktop/nodeflow/tests/SMPTE_colorbars/SMPTE_colorbars_00001.jpg")
     read = Read(filename)
     to_tex = ToTexture(read)
-    rec709 = ToRec709(to_tex)
-    out = rec709
+    shd = ApplyShader(to_tex)
+    out = sdh
 
     # display
     result = evaluate(out)
