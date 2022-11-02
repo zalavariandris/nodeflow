@@ -268,6 +268,10 @@ if __name__ == "__main__":
     import sys
     from PySide2.QtWidgets import QApplication
     from gui.glviewer import GLViewer
+
+    from pathlib import Path
+    print("CWD:", Path.cwd())
+
     app = QApplication(sys.argv)
     viewer = GLViewer()
     viewer.show()
@@ -278,7 +282,8 @@ if __name__ == "__main__":
 
     # Graph
     ramp = Ramp((512,512))
-    filename = Constant("C:/Users/andris/Desktop/nodeflow/tests/SMPTE_colorbars/SMPTE_colorbars_00001.jpg")
+
+    filename = Constant(str(Path.cwd() / Path("tests/SMPTE_colorbars/SMPTE_colorbars_00001.jpg")))
     read = Read(filename)
     to_tex = ToTexture(read)
     shd = ApplyShader(to_tex, """
