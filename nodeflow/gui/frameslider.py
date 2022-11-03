@@ -1,4 +1,4 @@
-from PySide2.QtWidgets import QAbstractSlider
+from PySide2.QtWidgets import QAbstractSlider, QStyleOptionSpinBox, QStyle
 from PySide2.QtGui import QMouseEvent,QWheelEvent, QPainter, QPen, QColor
 from PySide2.QtCore import Qt, QRect, QSize
 
@@ -74,7 +74,7 @@ class Frameslider(QAbstractSlider):
         # draw background
         painter.setPen(Qt.NoPen)
         painter.setBrush(self.palette().base().color())
-        painter.drawRoundedRect(QRect(0, 0, self.width(), self.height()), 4,4)
+        #painter.drawRoundedRect(QRect(0, 0, self.width(), self.height()), 4,4)
 
         # draw ticks
         zoomfactor = self.width() / (self.maximum()+1 - self.minimum())
@@ -103,36 +103,41 @@ class Frameslider(QAbstractSlider):
         thumb_size = QSize(20, 20)
 
         c = QColor(self.palette().text().color())
-        c.setAlpha(128)
+        c.setAlpha(24)
 
         painter.setPen(Qt.NoPen)
         painter.setBrush(c)
         painter.drawRect(x1, 0, x2-x1, self.height())
 
-        painter.setPen(QPen(self.palette().buttonText().color(), 1.0))
+        c = self.palette().buttonText().color()
+        c.setAlpha(255)
+        painter.setPen(QPen(c, 1.0))
         painter.drawLine(x1+1, 0, x1+1, self.height())
 
-        # draw frame value
+        # draw frame text
+        c = self.palette().buttonText().color()
+        c.setAlpha(128)
+        painter.setPen(QPen(c, 1.0))
         text_rect = QRect(x1, 0, self.width()-1-x1, self.height())
-        painter.drawText(text_rect, Qt.AlignLeft, str(self.sliderPosition()))
+        painter.drawText(text_rect, Qt.AlignLeft, str(self.value()))
 
+        # # draw arrow
         # option = QStyleOptionSpinBox()
         # option.initFrom(self)
         # self.style().drawPrimitive(QStyle.PE_IndicatorArrowRight, option, painter, self)
 
-
-        painter.drawRect(x-thumb_size.width()/2, self.height()/2-thumb_size.height()/2, thumb_size.width(), thumb_size.height())
-
-        # draw background rect
         
     def resizeEvent(self, event):
         self.update()
 
     def sizeHint(self):
-        return QSize(100, 100)
+        return QSize(100, 24)
 
     def minimumSizeHint(self):
         return QSize(100, 22)
+
+    def maximumSizeHint(self):
+        return QSize(1000, 22)
 
     # def zoom(self):
 
@@ -177,7 +182,7 @@ if __name__ == "__main__":
     window = Frameslider()
     window.resize(500, 100)
     window.setMinimum(100)
-    window.setMaximum(300)
+    window.setMaximum(150)
     def on_value_changed(val):
         print("valueChanged: ", val)
     window.valueChanged.connect(on_value_changed)

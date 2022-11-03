@@ -28,6 +28,27 @@ class Timeline(QWidget):
         self._outpoint = 100
         self._play_direction = Direction.FORWARD
 
+        self.setStyleSheet("""
+        QSpinBox{
+            background-color: rgba(128,128,128,0.0);
+            border: none;
+            border-radius: 5px;
+        }
+        QSpinBox:hover{
+            background-color: rgba(128,128,128,0.2);
+        }
+        QSpinBox:focus{
+            background-color: rgba(128,128,128,0.2);
+        }
+        QPushButton {
+
+        }
+        QFrame{
+            border: none;
+        }
+
+        """)
+
         # Create Time Controls (frame slider and playback controls)
         # --------------------------------------------------------
         
@@ -49,6 +70,8 @@ class Timeline(QWidget):
 
         # first frame spinner
         first_frame_spinner = QSpinBox()
+        first_frame_spinner.setButtonSymbols(QAbstractSpinBox.NoButtons)
+        first_frame_spinner.setAlignment(Qt.AlignRight)
         first_frame_spinner.setValue(self.minimum())
         first_frame_spinner.setMinimum(-999999)
         first_frame_spinner.setMaximum(+999999)
@@ -57,6 +80,7 @@ class Timeline(QWidget):
 
         # last frame spinner
         last_frame_spinner = QSpinBox()
+        last_frame_spinner.setButtonSymbols(QAbstractSpinBox.NoButtons)
         last_frame_spinner.setValue(self.maximum())
         last_frame_spinner.setMinimum(-999999)
         last_frame_spinner.setMaximum(+999999)
@@ -66,12 +90,13 @@ class Timeline(QWidget):
 
         # frameslider
         self.frameslider = Frameslider(orientation=Qt.Horizontal)
+        self.frameslider.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         self.frameslider.setTracking(True)
         self.frameslider.valueChanged.connect(self.setValue)
 
         # playback range slider
         self.playback_range_slider = MyRangeSlider()
-        self.playback_range_slider.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.playback_range_slider.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         self.playback_range_slider.setFixedHeight(8)
         self.playback_range_slider.setMinimum(self.minimum())
         self.playback_range_slider.setMaximum(self.maximum())
@@ -147,9 +172,9 @@ class Timeline(QWidget):
         skip_to_start_btn.pressed.connect(self.go_to_end)
         
         self.frame_spinner = QSpinBox()
+        self.frame_spinner.setButtonSymbols(QAbstractSpinBox.NoButtons)
         self.frame_spinner.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
         self.frame_spinner.setAlignment(Qt.AlignHCenter)
-        self.frame_spinner.setStyleSheet("QSpinBox{background-color:transparent}")
         self.frame_spinner.setButtonSymbols(QAbstractSpinBox.NoButtons)
         self.frame_spinner.setToolTip("current frame")
         self.frame_spinner.valueChanged.connect(self.setValue)
@@ -160,15 +185,17 @@ class Timeline(QWidget):
         slider_controls.setLayout(QHBoxLayout())
         slider_controls.layout().setContentsMargins(0,0,0,0)
         slider_controls.layout().setSpacing(0)
+        slider_controls.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         self.layout().addWidget(slider_controls)
         slider_controls.layout().addWidget(self.frame_dial)
         slider_controls.layout().addWidget(first_frame_spinner)
 
         # slider middle frame
-        middle = QWidget()
+        middle = QFrame()
         middle.setLayout(QVBoxLayout())
-        middle.layout().setContentsMargins(16,0,16,0)
+        middle.layout().setContentsMargins(0,0,0,0)
         middle.layout().setSpacing(0)
+        middle.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         middle.layout().addWidget(self.playback_range_slider)  
         middle.layout().addWidget(self.frameslider)
         #middle.layout().addWidget(cacheBar)
@@ -188,7 +215,7 @@ class Timeline(QWidget):
         self.backward_stack.layout().addWidget(self.play_backward_btn)
         self.backward_stack.layout().addWidget(self.pause_backward_btn)
 
-        playback_controls = QWidget()
+        playback_controls = QFrame()
         playback_controls.setLayout(QHBoxLayout())
         playback_controls.layout().setContentsMargins(0,0,0,0)
         playback_controls.layout().setSpacing(0)
