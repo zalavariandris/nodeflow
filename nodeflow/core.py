@@ -1,6 +1,6 @@
-from typing import Union, List, Dict, Any
+from typing import Union, List, Dict, Any, Generator, Callable
 from collections import OrderedDict
-
+from collections.abc import Hashable
 from collections import Counter
 
 class Operator:
@@ -15,10 +15,7 @@ class Operator:
         if self.namecounter[self.name]>0:
             self.name  += "#{:03d}".format(self.namecounter[self.name])
 
-    def __hash__(self):
-        return id(self)
-
-    def dependencies(self)->"Operator":
+    def dependencies(self)->Generator["Operator", None, None]:
         for dep in self.args:
             yield dep
 
@@ -26,7 +23,12 @@ class Operator:
             yield dep
 
     def key(self):
-        return hash( tuple( self.__dict__.values() ) )
+        tuple([arg.key() for arg in self.args])
+        return (
+            self.__class__.__name__, 
+            tuple([arg.key() for arg in self.args]),
+            tuple([arg.key() for arg in self.kwargs.values()])
+        )
 
     def __hash__(self):
         return id(self)
@@ -49,6 +51,70 @@ class Constant(Operator):
     def __call__(self):
         return self.value
 
+    def key(self):
+        return id(self.value)
+
+
+class Variable(Operator):
+    def __init__(self, value):
+        super().__init__()
+        assert isinstance(value, Hashable)
+        self.value = value
+
+    def __call__(self):
+        return self.value
+
+    def key(self):
+        return ("var", self.value)
+
+class Cache(Operator):
+	def __init__(self, source:Operator, key:Callable=None):
+		super().__init__()
+		if key is None:
+			key = lambda s: hash(s)
+
+		self.source = source
+		self._key = key
+		if not self._key is None:
+			self._key = lambda: source.key()
+
+
+		self.cache = dict()
+
+	def __hash__(self):
+		return hash( ("Cache", self.source) )
+
+	def dependencies(self):
+		if self.source.key() not in self.cache:
+			return [self.source]
+		else:
+			return []
+
+	def __call__(self, value=None):
+		if value is not None:
+			key = self.source.key()
+			print("put key in cache", key)
+			self.cache[key] = value
+		return self.cache[self.source.key()]
+
+	def key(self):
+		return self._key()
+
+def operator(f):
+    class Op(Operator):
+        def __init__(self, *args, **kwargs):
+            assert all(isinstance(arg, Operator) for arg in args)
+            assert all(isinstance(arg, Operator) for arg in kwargs.values())
+            super().__init__(*args, **kwargs)
+
+        def __call__(self, *args, **kwags):
+            return f(*args, **kwags)
+
+        def repr(self):
+            return f"operator({f.__name__})"
+
+    return Op
+
 
 def test_dependency_order(ordered_nodes):
     indices = [i for i, node in enumerate(ordered_nodes)]
@@ -70,6 +136,7 @@ def graph(root:Operator):
                 G[N].append(S)
 
     return G
+
 
 def evaluate(root:Operator, verbose=False):
     """Evaluate Graph"""

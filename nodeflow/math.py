@@ -1,5 +1,5 @@
 from typing import Callable, Any, Hashable
-from core import Operator, Constant
+from .core import Operator, Constant
 
 
 # class Constant(Operator):

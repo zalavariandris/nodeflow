@@ -1,9 +1,10 @@
 from typing import Tuple
 from webbrowser import Opera
-from core import Operator, Constant, evaluate
 from pathlib import Path
 
 import numpy as np
+
+from .core import Operator, Constant, evaluate
 
 
 class Read(Operator):
@@ -14,6 +15,9 @@ class Read(Operator):
         if not Path(filename).exists():
             raise FileNotFoundError(filename)
         return cv2.imread(filename).astype(np.float32)/255.0
+
+    def key(self):
+        return ("Read", self.filename.key())
 
 
 class Ramp(Operator):
@@ -26,6 +30,9 @@ class Ramp(Operator):
         B = np.zeros(shape=R.shape, dtype=np.float32)
         rgb = np.dstack([R, G, B])
         return rgb
+
+    def key(self):
+        return ("Ramp", self.width, self.height)
 
 
 import cv2

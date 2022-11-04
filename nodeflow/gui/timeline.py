@@ -3,13 +3,13 @@ from PySide2.QtWidgets import QWidget, QComboBox, QSlider, QOpenGLWidget, QAppli
 from PySide2.QtGui import QMouseEvent,QWheelEvent, QPainter
 from PySide2.QtCore import Qt, Signal, QTimer
 
-
-from lineardial import LinearDial
-from myrangeslider import MyRangeSlider
-from frameslider import Frameslider
-from cachebar import CacheBar
-
 from enum import Enum
+
+from nodeflow.gui.lineardial import LinearDial
+from nodeflow.gui.myrangeslider import MyRangeSlider
+from nodeflow.gui.frameslider import Frameslider
+from nodeflow.gui.cachebar import CacheBar
+
 
 class Direction(Enum):
     FORWARD = 1
@@ -293,7 +293,6 @@ class Timeline(QWidget):
         return self._value
 
     def setValue(self, val:int):
-        print("set value")
         if self._value == val:
             return
             
