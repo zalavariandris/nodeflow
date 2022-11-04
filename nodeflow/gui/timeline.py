@@ -1,5 +1,5 @@
 # PySide
-from PySide2.QtWidgets import QWidget, QOpenGLWidget, QApplication, QVBoxLayout, QHBoxLayout, QFrame, QDial, QPushButton, QSpinBox, QSizePolicy, QAbstractSpinBox, QStackedLayout
+from PySide2.QtWidgets import QWidget, QComboBox, QSlider, QOpenGLWidget, QApplication, QVBoxLayout, QHBoxLayout, QFrame, QDial, QPushButton, QSpinBox, QSizePolicy, QAbstractSpinBox, QStackedLayout
 from PySide2.QtGui import QMouseEvent,QWheelEvent, QPainter
 from PySide2.QtCore import Qt, Signal, QTimer
 
@@ -14,6 +14,12 @@ from enum import Enum
 class Direction(Enum):
     FORWARD = 1
     BACKWARD = 2
+
+class LoopMode(Enum):
+    REPEAT = 0
+    BOUNCE = 1
+    STOP = 2
+    CONTINUE = 3
 
 class Timeline(QWidget):
     valueChanged = Signal(int)
@@ -45,6 +51,24 @@ class Timeline(QWidget):
         }
         QFrame{
             border: none;
+        }
+
+        QComboBox{
+            background-color: transparent;
+        }
+        QComboBox:hover{
+            background-color: rgba(128,128,128,0.2);
+        }
+        QComboBox::drop-down {
+            border-width: 0px;
+            width: 0px;
+        }
+        QComboBox::drop-down {
+            border-width: 0px;
+            width: 0px;
+        }
+        QComboBox::down-arrow {
+            background-color: transparent;
         }
 
         """)
@@ -89,7 +113,7 @@ class Timeline(QWidget):
 
 
         # frameslider
-        self.frameslider = Frameslider(orientation=Qt.Horizontal)
+        self.frameslider = QSlider(orientation=Qt.Horizontal)
         self.frameslider.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         self.frameslider.setTracking(True)
         self.frameslider.valueChanged.connect(self.setValue)
@@ -112,18 +136,42 @@ class Timeline(QWidget):
         # ========================
 
         # playback timer
+        self._loopmode = LoopMode.REPEAT
         self.timer = QTimer()
         
         def step():
             val = self.value()
+            print(self._loopmode)
             if self._play_direction == Direction.FORWARD:
                 val+=1
                 if val>self.outpoint():
-                    val = self.inpoint()
+                    if self._loopmode == LoopMode.REPEAT:
+                        val = self.inpoint()
+                    elif self._loopmode == LoopMode.BOUNCE:
+                        self._play_direction = Direction.BACKWARD
+                        val = self.outpoint()-1
+                    elif self._loopmode == LoopMode.STOP:
+                        val = self.outpoint()
+                        self.pause()
+                    elif self._loopmode == LoopMode.CONTINUE:
+                        pass
+                    else:
+                        raise ValueError
+
             elif self._play_direction == Direction.BACKWARD:
                 val-=1
                 if val<self.inpoint():
-                    val = self.outpoint()
+                    if self._loopmode == LoopMode.REPEAT: val = self.outpoint()
+                    elif self._loopmode == LoopMode.BOUNCE:
+                        self._play_direction = Direction.FORWARD
+                        val = self.inpoint()+1
+                    elif self._loopmode == LoopMode.STOP:
+                        val = self.inpoint()
+                        self.pause()
+                    elif self._loopmode == LoopMode.CONTINUE:
+                        pass
+                    else:
+                        raise ValueError
             else:
                 raise ValueError
 
@@ -138,6 +186,11 @@ class Timeline(QWidget):
         self.fps_spinner.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
         self.fps_spinner.setValue(self.fps())
         self.fps_spinner.valueChanged.connect(self.setFps)
+
+        # loopmode dropdown
+        self.loopmode_btn = QComboBox()
+        self.loopmode_btn.addItems(["Repeat", "Bounce", "Stop", "Continue"])
+        self.loopmode_btn.currentIndexChanged.connect(lambda idx: self.setLoopMode(LoopMode(idx)))
 
         self.play_forward_btn = QPushButton("\u23F5")
         self.play_forward_btn.setFixedWidth(26)
@@ -169,7 +222,7 @@ class Timeline(QWidget):
 
         skip_to_end_btn = QPushButton(">>|")
         skip_to_end_btn.setFixedWidth(26)
-        skip_to_start_btn.pressed.connect(self.go_to_end)
+        skip_to_end_btn.pressed.connect(self.go_to_end)
         
         self.frame_spinner = QSpinBox()
         self.frame_spinner.setButtonSymbols(QAbstractSpinBox.NoButtons)
@@ -223,6 +276,7 @@ class Timeline(QWidget):
         self.layout().addWidget(playback_controls)
 
         playback_controls.layout().addWidget(self.fps_spinner)
+        playback_controls.layout().addWidget(self.loopmode_btn)
         playback_controls.layout().addWidget(skip_to_start_btn)
         playback_controls.layout().addWidget(step_back_btn)
         playback_controls.layout().addWidget(self.backward_stack)
@@ -276,6 +330,17 @@ class Timeline(QWidget):
         self.playback_range_slider.blockSignals(True)
         self.playback_range_slider.setUpperValue(val)
         self.playback_range_slider.blockSignals(False)
+
+    def loopMode(self):
+        return self._loopmode
+
+    def setLoopMode(self, val):
+        print("set loop ode", val)
+        self._loopmode = val
+
+        self.loopmode_btn.blockSignals(True)
+        self.loopmode_btn.setCurrentIndex(self._loopmode.value)
+        self.loopmode_btn.blockSignals(False)
 
     def minimum(self):
         return self._minimum
