@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .core import Operator, Constant, evaluate
+from nodeflow.core import Operator, Constant
 
 
 class Read(Operator):
@@ -89,7 +89,7 @@ if __name__ == "__main__":
     for i, op in enumerate(ops):
         ax = fig.add_subplot(rows,cols,i+1)
         ax.set_title(op.name)
-        ax.imshow(evaluate(op))
+        ax.imshow(op.evaluate())
 
     plt.show()
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from OpenGL.GL import *
 
 import numpy as np
-from core import Operator, Constant
+from nodeflow.core import Operator, Constant
 
 
 @dataclass(frozen=False)
@@ -277,7 +277,6 @@ if __name__ == "__main__":
     viewer.show()
     
     #=========================
-    from core import evaluate
     from image import Read, Ramp
 
     # Graph
@@ -301,6 +300,6 @@ if __name__ == "__main__":
     out = shd
 
     # display
-    result = evaluate(out)
+    result = out.evaluate()
     viewer.setTexture(result.tex)
     sys.exit(app.exec_())

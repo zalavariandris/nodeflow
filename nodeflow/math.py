@@ -1,66 +1,48 @@
-from typing import Callable, Any, Hashable
-from .core import Operator, Constant
+from typing import Callable, Any, Hashable, Union
+from nodeflow.core import Operator, Constant, operator
 
 
-# class Constant(Operator):
-#     def __init__(self, value:Any, name: str=None):
-#         super().__init__(name)
-#         self.value = value
+class Plus(Operator):
+    def __init__(self, A:Operator, B:Operator):
+        super().__init__(A, B)
 
-#     def __call__(self)->Any:
-#         return self.value
-
-
-def operator(f: Callable):
-    class Op(Operator):
-        def __init__(self, *args):
-            super().__init__(name=f.__name__)
-            self.inputs = args
-
-        def dependencies(self):
-            return self.inputs
-
-        def __call__(self, *args):
-            print("evaluate: ", args)
-            return f(*args)
-
-    return Op
+    def __call__(self, a:Union[int, float], b:Union[int, float]):
+        return a+b
 
 
-@operator
-def Plus(a:int, b:int):
-    return a+b
+class Minus(Operator):
+    def __init__(self, A:Operator, B:Operator):
+        super().__init__(A, B)
 
-@operator
-def Minus(a:int, b:int):
-    return a-b
+    def __call__(self, a:Union[int, float], b:Union[int, float]):
+        return a-b
 
-@operator
-def Multiply(a:int, b:int):
-    return a*b
 
-@operator
-def Divide(a:int, b:int):
-    return a/b
+class Multiply(Operator):
+    def __init__(self, A:Operator, B:Operator):
+        super().__init__(A, B)
+
+    def __call__(self, a:Union[int, float], b:Union[int, float]):
+        return a*b
+
+
+class Divide(Operator):
+    def __init__(self, A:Operator, B:Operator):
+        super().__init__(A, B)
+
+    def __call__(self, a:Union[int, float], b:Union[int, float]):
+        return a/b
+
 
 if __name__ == "__main__":
 
-    from core import evaluate, graph
-    one = Constant(1)
-    five = Constant(5)
+    one = Constant(1, name="one")
+    five = Constant(5, name="five")
     plus = Plus(one, five)
     minus = Minus(five, one)
     divide = Divide(plus,five)
+    mult = Multiply(divide, one)
 
-    result = evaluate(divide, verbose=True)
-
-    import matplotlib.pyplot as plt
-    import networkx as nx
     
-
-    G = nx.DiGraph( graph(divide) ).reverse()
-    plt.figure(figsize=(8,6))
-    nx.draw_spectral(G, with_labels=True)
-    plt.show()
-
+    result = mult.evaluate(verbose=True)
     print(result)
