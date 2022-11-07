@@ -54,21 +54,7 @@ class ReconnectInputs(unittest.TestCase):
         self.assertEqual(add.evaluate(), 9)
 
 
-class CacheOperator(unittest.TestCase):
-    def test_request(self):
-        import requests
-        
-        # create the graph
-        url = "https://github.com/zalavariandris/nodeflow"
-        Request = operator(lambda url: requests.get(url).text)
-        request = Request(Constant(url))
 
-        # evaluate the graph
-        result = request.evaluate()
-
-        # test against raw requests lib
-        self.assertTrue(requests.get(url).text, result)
-        self.assertTrue(result.strip().startswith("<!DOCTYPE html>"))
 
 
 if __name__ == '__main__':

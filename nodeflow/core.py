@@ -99,7 +99,7 @@ class Operator:
 
 
         # keep results as arguments
-        if verbose: print("\nEvaluate graph", evaluation_order)
+        if verbose: print("\nEvaluate graph (in order:", evaluation_order, ")")
         arguments = {N: list() for N in G.keys()}
         for N in evaluation_order:
             args = [n for n in reversed(arguments[N])]

@@ -3,6 +3,7 @@ from webbrowser import Opera
 from pathlib import Path
 
 import numpy as np
+import cv2
 
 from nodeflow.core import Operator, Constant
 
@@ -88,7 +89,7 @@ if __name__ == "__main__":
     rows = math.ceil(len(ops)/cols)
     for i, op in enumerate(ops):
         ax = fig.add_subplot(rows,cols,i+1)
-        ax.set_title(op.name)
+        ax.set_title(f"{op}")
         ax.imshow(op.evaluate())
 
     plt.show()
