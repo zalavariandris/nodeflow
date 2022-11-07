@@ -15,10 +15,11 @@ class Read(Operator):
     def __call__(self, filename:str):
         if not Path(filename).exists():
             raise FileNotFoundError(filename)
+        print("read file")
         return cv2.imread(filename).astype(np.float32)/255.0
 
     def key(self):
-        return ("Read", self.filename.key())
+        return ("Read", self.args[0].key())
 
 
 class Ramp(Operator):

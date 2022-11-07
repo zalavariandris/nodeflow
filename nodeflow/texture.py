@@ -14,12 +14,10 @@ class Texture:
         self.tex = int(tex)
         if self.tex == -1:
             self.tex = int(glGenTextures( 1 ))
-            print(self.tex)
 
 
     def __del__(self):
         if self.tex>0 and glIsTexture(self.tex):
-            print("delete texture:", self.tex, type(self.tex))
             glDeleteTextures(1, [self.tex])
 
 

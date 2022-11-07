@@ -5,6 +5,10 @@ from PySide2.QtWidgets import QWidget, QSizePolicy
 from PySide2.QtCore import QSize
 
 import pythonflow as pf
+import nodeflow as nf
+
+from pathlib import Path
+
 
 class Window(QWidget):
     def __init__(self, parent=None):
@@ -22,8 +26,23 @@ class Window(QWidget):
 
         self.timeline.valueChanged.connect(self.evaluate)
 
+        # create graph
+        frame=1
+        self.filename = nf.Variable(str(Path.cwd() / Path(f"tests/SMPTE_colorbars/SMPTE_colorbars_{frame:05d}.jpg") ))
+        #print(filename.value)
+        read = nf.Read(self.filename)
+        cached_read = nf.Cache(read)
+        tex = nf.texture.ToTexture(cached_read)
+
+        self.out = tex
+
     def evaluate(self, frame):
-        print("evaluate", frame)
+        from pathlib import Path
+        
+        self.filename.value = str(Path.cwd() / Path(f"tests/SMPTE_colorbars/SMPTE_colorbars_{frame:05d}.jpg") )
+        result = self.out.evaluate()
+        self.tex = result
+        self.viewer.setTexture(result.tex)
 
     def size(self):
         return QSize(720, 576)
