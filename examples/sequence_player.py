@@ -38,10 +38,16 @@ class Window(QWidget):
 
     def evaluate(self, frame):
         from pathlib import Path
-        
+        # get current filename by frame
         self.filename.value = str(Path.cwd() / Path(f"tests/SMPTE_colorbars/SMPTE_colorbars_{frame:05d}.jpg") )
+
+        # evaluate graph
         result = self.out.evaluate()
+        
+        # keep texture object in memory
         self.tex = result
+
+        # pass texture id to glviewer for display
         self.viewer.setTexture(result.tex)
 
     def size(self):
