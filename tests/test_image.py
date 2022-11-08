@@ -17,7 +17,15 @@ if __name__ == '__main__':
 
     out = blend
     img = out.evaluate()
-
+    
     import matplotlib.pyplot as plt
-    plt.imshow(img)
-    plt.show()
+    #plt.imshow(img)
+
+    import networkx as nx
+    from grandalf.layouts import SugiyamaLayout
+    from grandalf.graphs import Vertex, Edge, Graph
+
+
+    sug = SugiyamaLayout(G)
+    sug.init_all()
+    sug.draw()

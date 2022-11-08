@@ -15,7 +15,6 @@ class Read(Operator):
     def __call__(self, filename:str):
         if not Path(filename).exists():
             raise FileNotFoundError(filename)
-        print("read file")
         return cv2.imread(filename).astype(np.float32)/255.0
 
     def key(self):

@@ -93,23 +93,23 @@ class Timeline(QWidget):
         self.frame_dial.valueChanged.connect(self.setValue)
 
         # first frame spinner
-        first_frame_spinner = QSpinBox()
-        first_frame_spinner.setButtonSymbols(QAbstractSpinBox.NoButtons)
-        first_frame_spinner.setAlignment(Qt.AlignRight)
-        first_frame_spinner.setValue(self.minimum())
-        first_frame_spinner.setMinimum(-999999)
-        first_frame_spinner.setMaximum(+999999)
-        first_frame_spinner.setToolTip("first frame")
-        first_frame_spinner.valueChanged.connect(self.setMinimum)
+        self.first_frame_spinner = QSpinBox()
+        self.first_frame_spinner.setButtonSymbols(QAbstractSpinBox.NoButtons)
+        self.first_frame_spinner.setAlignment(Qt.AlignRight)
+        self.first_frame_spinner.setValue(self.minimum())
+        self.first_frame_spinner.setMinimum(-999999)
+        self.first_frame_spinner.setMaximum(+999999)
+        self.first_frame_spinner.setToolTip("first frame")
+        self.first_frame_spinner.valueChanged.connect(self.setMinimum)
 
         # last frame spinner
-        last_frame_spinner = QSpinBox()
-        last_frame_spinner.setButtonSymbols(QAbstractSpinBox.NoButtons)
-        last_frame_spinner.setValue(self.maximum())
-        last_frame_spinner.setMinimum(-999999)
-        last_frame_spinner.setMaximum(+999999)
-        last_frame_spinner.setToolTip("last frame")
-        last_frame_spinner.valueChanged.connect(self.setMaximum)
+        self.last_frame_spinner = QSpinBox()
+        self.last_frame_spinner.setButtonSymbols(QAbstractSpinBox.NoButtons)
+        self.last_frame_spinner.setValue(self.maximum())
+        self.last_frame_spinner.setMinimum(-999999)
+        self.last_frame_spinner.setMaximum(+999999)
+        self.last_frame_spinner.setToolTip("last frame")
+        self.last_frame_spinner.valueChanged.connect(self.setMaximum)
 
 
         # frameslider
@@ -141,7 +141,6 @@ class Timeline(QWidget):
         
         def step():
             val = self.value()
-            print(self._loopmode)
             if self._play_direction == Direction.FORWARD:
                 val+=1
                 if val>self.outpoint():
@@ -241,7 +240,7 @@ class Timeline(QWidget):
         slider_controls.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         self.layout().addWidget(slider_controls)
         slider_controls.layout().addWidget(self.frame_dial)
-        slider_controls.layout().addWidget(first_frame_spinner)
+        slider_controls.layout().addWidget(self.first_frame_spinner)
 
         # slider middle frame
         middle = QFrame()
@@ -253,7 +252,7 @@ class Timeline(QWidget):
         middle.layout().addWidget(self.frameslider)
         #middle.layout().addWidget(cacheBar)
         slider_controls.layout().addWidget(middle)
-        slider_controls.layout().addWidget(last_frame_spinner)
+        slider_controls.layout().addWidget(self.last_frame_spinner)
 
         # playback controls
         self.forward_stack = QWidget()
@@ -321,6 +320,8 @@ class Timeline(QWidget):
         self.playback_range_slider.setLowerValue(val)
         self.playback_range_slider.blockSignals(False)
 
+        
+
     def outpoint(self):
         return self._outpoint
 
@@ -349,6 +350,10 @@ class Timeline(QWidget):
         self.frameslider.setMinimum(val)
         self.playback_range_slider.setMinimum(val)
 
+        self.first_frame_spinner.blockSignals(True)
+        self.first_frame_spinner.setValue(val)
+        self.first_frame_spinner.blockSignals(False)
+
     def maximum(self):
         return self._maximum
 
@@ -356,6 +361,10 @@ class Timeline(QWidget):
         self._maximum = val
         self.frameslider.setMaximum(val)
         self.playback_range_slider.setMaximum(val)
+
+        self.last_frame_spinner.blockSignals(True)
+        self.last_frame_spinner.setValue(val)
+        self.last_frame_spinner.blockSignals(False)
 
     def setFps(self, val:float):
         if self._fps == val:

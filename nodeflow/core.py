@@ -120,6 +120,7 @@ class Operator:
         # return the last evaluated value
         return value
 
+
 def operator(f):
     # print("make operator from function", f.__name__)
     class Op(Operator):
@@ -161,6 +162,7 @@ class Variable(Operator):
     def key(self):
         return ("var", self.value)
 
+
 class Cache(Operator):
 	def __init__(self, source:Operator, key:Callable=None):
 		super().__init__()
@@ -193,6 +195,16 @@ class Cache(Operator):
 	def key(self):
 		return self._key()
 
+
+class Log(Operator):
+    def __init__(self, value:Operator, fmt:str="{value}", name=None):
+        super().__init__(value, name=name)
+        self.fmt = fmt
+
+    def __call__(self, value):
+        print(self.fmt.format(value=value))
+        return value
+        
 
 def test_dependency_order(ordered_nodes):
     indices = [i for i, node in enumerate(ordered_nodes)]
