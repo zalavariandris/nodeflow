@@ -121,19 +121,18 @@ class Operator:
         return value
 
 
-def operator(f):
+def operator(f, name=None):
     # print("make operator from function", f.__name__)
     class Op(Operator):
         def __init__(self, *args, **kwargs):
             assert all(isinstance(arg, Operator) for arg in args)
             assert all(isinstance(arg, Operator) for arg in kwargs.values())
-            super().__init__(*args, **kwargs)
-            self._f = f
-            self._name == self.make_unique_name(self._f.__name__)
+            super().__init__(*args, name=name or f.__name__, **kwargs)
+            # self._f = f
             # print("SET operator name to:", self._name)
 
         def __call__(self, *args, **kwags):
-            return self._f(*args, **kwags)
+            return f(*args, **kwags)
 
     return Op
 
@@ -161,6 +160,9 @@ class Variable(Operator):
 
     def key(self):
         return ("var", self.value)
+
+    def __str__(self):
+        return str(self.value)
 
 
 class Cache(Operator):
@@ -195,14 +197,14 @@ class Cache(Operator):
 	def key(self):
 		return self._key()
 
-
+import datetime
 class Log(Operator):
-    def __init__(self, value:Operator, fmt:str="{value}", name=None):
+    def __init__(self, value:Operator, fmt:str="{timestamp} {value}", name=None):
         super().__init__(value, name=name)
         self.fmt = fmt
 
     def __call__(self, value):
-        print(self.fmt.format(value=value))
+        print(self.fmt.format(timestamp=str(datetime.datetime.now()), value=value))
         return value
         
 

@@ -54,8 +54,5 @@ class ReconnectInputs(unittest.TestCase):
         self.assertEqual(add.evaluate(), 9)
 
 
-
-
-
 if __name__ == '__main__':
     unittest.main(verbosity=2)

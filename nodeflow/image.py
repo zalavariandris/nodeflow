@@ -7,7 +7,9 @@ import cv2
 
 from nodeflow.core import Operator, Constant
 
-
+"""
+GENERATORS
+"""
 class Read(Operator):
     def __init__(self, filename:Operator, name=None):
         super().__init__(filename, name=name)
@@ -36,7 +38,9 @@ class Ramp(Operator):
         return ("Ramp", self.width, self.height)
 
 
-import cv2
+"""
+Filters
+"""
 class GaussianBlur(Operator):
     def __init__(self, img:Operator, name=None):
         super().__init__(img, name=name)
@@ -52,7 +56,9 @@ class BilateralFilter(Operator):
     def __call__(self, img:np.ndarray):
         return cv2.bilateralFilter(img,90,75,75)
 
-
+"""
+Transform
+"""
 class Resize(Operator):
     def __init__(self, img:Operator, size:Operator):
         super().__init__(img, size)
@@ -60,7 +66,9 @@ class Resize(Operator):
     def __call__(self, img:np.ndarray, size:Tuple[int, int]):
         return cv2.resize(img, size)
 
-
+"""
+Merges
+"""
 class Blend(Operator):
     def __init__(self, A:Operator, B:Operator, mix:Operator):
         super().__init__(A, B, mix)

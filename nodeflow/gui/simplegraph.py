@@ -6,7 +6,7 @@ from typing import Dict, List
 import math, random
 
 
-class VertexItem(QGraphicsEllipseItem):
+class NodeItem(QGraphicsEllipseItem):
     def __init__(self, parent=None):
         size = 15
         super().__init__(QRect(-size/2,-size/2, size,size), parent=parent)
@@ -22,6 +22,7 @@ class VertexItem(QGraphicsEllipseItem):
         self.setPen(Qt.NoPen)
 
         self._label = QGraphicsTextItem(parent=self)
+        self._label.setTextWidth(120)
 
         self.setFlags(QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemSendsGeometryChanges)
 
@@ -106,7 +107,6 @@ def grandalf_layout(G, root=None):
             E.append(Edge(V[n], V[s]))
 
     g = Graph(V.values(), E)
-    print("GRandalf:", g)
     from grandalf.layouts import SugiyamaLayout
     class default_view:
         w, h=50.0,50.0
@@ -132,22 +132,25 @@ class SimpleGraph(QGraphicsView):
     def setGraph(self, G):
         self.scene().clear()
         pos = grandalf_layout(G)
-        print(pos)
-        self.vertices = dict()
+        self.nodes = dict()
         for n, (x, y) in pos.items():
-            vertex = VertexItem()
-            vertex.setText(f"{n}")
-            vertex.setPos(x, y)
-            self.scene().addItem(vertex)
-            self.vertices[n]=vertex
+            nodeitem = NodeItem()
+            nodeitem.setToolTip(repr(n))
+            nodeitem.setText(str(n))
+            nodeitem.setPos(x, y)
+            self.scene().addItem(nodeitem)
+            self.nodes[n]=nodeitem
 
         self.edges = dict()
         for n, sources in G.items():
             for s in sources:
-                edge = EdgeItem(self.vertices[s], self.vertices[n])
-                edge.setZValue(-1)
-                self.scene().addItem(edge)
-                self.edges[(n, s)]= edge
+                edgeitem = EdgeItem(self.nodes[s], self.nodes[n])
+                edgeitem.setZValue(-1)
+                self.scene().addItem(edgeitem)
+                self.edges[(n, s)]= edgeitem
+
+    def node(self, key):
+        return self.nodes[key]
 
 
 
