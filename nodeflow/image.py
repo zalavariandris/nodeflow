@@ -7,6 +7,7 @@ import cv2
 
 from nodeflow.core import Operator, Constant
 
+
 """
 GENERATORS
 """
@@ -38,6 +39,19 @@ class Ramp(Operator):
         return ("Ramp", self.width, self.height)
 
 
+# class ClipCache:
+#     def __init__(self):
+#         self._cache = dict()
+
+#     @classmethod
+#     def instance(cls, self):
+#         if cls._instance is None:
+#             cls._instance = ClipCache()
+#         return cls._instance()
+
+
+
+
 """
 Filters
 """
@@ -56,6 +70,7 @@ class BilateralFilter(Operator):
     def __call__(self, img:np.ndarray):
         return cv2.bilateralFilter(img,90,75,75)
 
+
 """
 Transform
 """
@@ -65,6 +80,7 @@ class Resize(Operator):
 
     def __call__(self, img:np.ndarray, size:Tuple[int, int]):
         return cv2.resize(img, size)
+
 
 """
 Merges

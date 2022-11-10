@@ -25,6 +25,10 @@ class Operator:
         self._name = self.make_unique_name(name or self.__class__.__name__)
 
     @classmethod
+    def copy(cls, op):
+        pass
+
+    @classmethod
     def make_unique_name(cls, name:str):
         cls.namecounter[name]+=1
         if cls.namecounter[name]>0:

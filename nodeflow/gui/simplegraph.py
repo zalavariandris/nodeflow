@@ -1,5 +1,5 @@
 # PySide
-from PySide2.QtWidgets import QWidget, QOpenGLWidget, QApplication, QGraphicsView, QGraphicsScene, QGraphicsItem, QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsTextItem
+from PySide2.QtWidgets import QWidget, QOpenGLWidget, QGraphicsView, QGraphicsScene, QGraphicsItem, QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsTextItem
 from PySide2.QtGui import QMouseEvent,QWheelEvent, QColor, QBrush, QPen, QPainter, QPainterPath, QPolygonF
 from PySide2.QtCore import Qt, QRect, QLineF, QPointF
 from typing import Dict, List
@@ -156,7 +156,7 @@ class SimpleGraph(QGraphicsView):
 
 if __name__ == "__main__":
     # create a graph
-
+    from PySide2.QtWidgets import QApplication
     import sys
     app = QApplication(sys.argv)
     viewer = SimpleGraph()
